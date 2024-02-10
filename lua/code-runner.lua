@@ -24,6 +24,7 @@ function M.setup(opts)
 
     if M.opts.run_tmux ~= false then
         vim.cmd("TermExec cmd='tmux new-session -A -s nvim'")
+        vim.cmd("ToggleTerm")
     end
 
     -- Set the keymap
