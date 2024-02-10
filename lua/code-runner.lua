@@ -69,12 +69,6 @@ function M.setup(opts)
 end
 
 function M.run_code()
-    -- print("Starting")
-    -- local file_path = vim.fn.expand("%:p")
-    -- local file_dir = vim.fn.expand("%:p:h")
-    -- local file_name = vim.fn.expand("%:t")
-    -- local file_name_without_ext = vim.fn.expand("%:r:t")
-    -- local file_extension = vim.fn.fnamemodify(file_path, ":e")
     print("Starting")
     -- Get the current window's buffer number
     local bufnr = vim.api.nvim_win_get_buf(0)
