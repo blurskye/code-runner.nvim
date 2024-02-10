@@ -1,8 +1,13 @@
 local M = {}
 
 -- Default commands
+-- M.commands = {
+--     py = 'python -u %s',
+--     -- todo more commands
+-- }
+
 M.commands = {
-    py = 'python -u %s',
+    py = 'python -u $dir/$fileName',
     -- todo more commands
 }
 
