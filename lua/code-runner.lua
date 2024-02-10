@@ -80,10 +80,16 @@ function M.run_code()
     local bufnr = vim.api.nvim_win_get_buf(0)
     -- Check if the current window contains a terminal
     if vim.api.nvim_buf_get_option(bufnr, "buftype") == "terminal" then
-        -- Get the window ID of the window above the current window
-        local win_id = vim.api.nvim_win_get_number(0) - 1
-        -- Get the buffer number of the window above the current window
-        bufnr = vim.api.nvim_win_get_buf(win_id)
+        -- Get the list of all windows in the current tabpage
+        local wins = vim.api.nvim_tabpage_list_wins(0)
+        -- Find the window above the current one
+        for i, win in ipairs(wins) do
+            if win == vim.api.nvim_get_current_win() and i > 1 then
+                -- Get the buffer number of the window above the current window
+                bufnr = vim.api.nvim_win_get_buf(wins[i - 1])
+                break
+            end
+        end
     end
     local file_path = vim.api.nvim_buf_get_name(bufnr)
     local file_dir = vim.fn.fnamemodify(file_path, ":h")
