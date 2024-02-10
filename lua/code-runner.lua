@@ -223,8 +223,8 @@ function M.run_code()
 
     if cmd then
         cmd = cmd:gsub("$dir", file_dir)
-        cmd = cmd:gsub("$fileName", file_name)
         cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
+        cmd = cmd:gsub("$fileName", file_name)
         print("Running command: " .. cmd)
         vim.cmd("execute 'TermExec cmd=\"" .. cmd .. "\"'")
     else
