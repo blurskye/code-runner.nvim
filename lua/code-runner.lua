@@ -69,11 +69,26 @@ function M.setup(opts)
 end
 
 function M.run_code()
+    -- print("Starting")
+    -- local file_path = vim.fn.expand("%:p")
+    -- local file_dir = vim.fn.expand("%:p:h")
+    -- local file_name = vim.fn.expand("%:t")
+    -- local file_name_without_ext = vim.fn.expand("%:r:t")
+    -- local file_extension = vim.fn.fnamemodify(file_path, ":e")
     print("Starting")
-    local file_path = vim.fn.expand("%:p")
-    local file_dir = vim.fn.expand("%:p:h")
-    local file_name = vim.fn.expand("%:t")
-    local file_name_without_ext = vim.fn.expand("%:r:t")
+    -- Get the current window's buffer number
+    local bufnr = vim.api.nvim_win_get_buf(0)
+    -- Check if the current window contains a terminal
+    if vim.api.nvim_buf_get_option(bufnr, "buftype") == "terminal" then
+        -- Get the window ID of the window above the current window
+        local win_id = vim.api.nvim_win_get_number(0) - 1
+        -- Get the buffer number of the window above the current window
+        bufnr = vim.api.nvim_win_get_buf(win_id)
+    end
+    local file_path = vim.api.nvim_buf_get_name(bufnr)
+    local file_dir = vim.fn.fnamemodify(file_path, ":h")
+    local file_name = vim.fn.fnamemodify(file_path, ":t")
+    local file_name_without_ext = vim.fn.fnamemodify(file_path, ":r:t")
     local file_extension = vim.fn.fnamemodify(file_path, ":e")
 
     local language
