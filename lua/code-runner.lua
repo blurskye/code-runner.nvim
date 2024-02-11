@@ -1,17 +1,76 @@
 local M = {}
 
+function M.load_json()
+    local bufnr = vim.api.nvim_win_get_buf(0)
+    local file_path = vim.api.nvim_buf_get_name(bufnr)
+    local file_dir = vim.fn.fnamemodify(file_path, ":h")
+
+    while file_dir ~= "/" do
+        local json_path = file_dir .. "/coderun.json"
+        local file = io.open(json_path, "r")
+
+        if file then
+            local content = file:read("*all")
+            file:close()
+
+            local data = json.decode(content)
+
+            for _, v in pairs(data) do
+                if v.command and v.keybind then
+                    return v.command, v.keybind
+                end
+            end
+        end
+
+        file_dir = vim.fn.fnamemodify(file_dir, ":h")
+    end
+
+    return nil, nil
+end
+
 M.commands = {
+    java = "cd $dir && javac $fileName && java $fileNameWithoutExt",
     python = "python3 -u $dir/$fileName",
+    typescript = "deno run $dir/$fileName",
+    rust = "cd $dir && rustc $fileName && $dir/$fileNameWithoutExt",
+    c = "cd $dir && gcc $fileName -o $fileNameWithoutExt && $dir/$fileNameWithoutExt",
+    cpp = "cd $dir && g++ $fileName -o $fileNameWithoutExt && $dir/$fileNameWithoutExt",
+    javascript = "node $dir/$fileName",
+    php = "php $dir/$fileName",
+    ruby = "ruby $dir/$fileName",
+    go = "go run $dir/$fileName",
+    perl = "perl $dir/$fileName",
+    bash = "bash $dir/$fileName",
+    lisp = "sbcl --script $dir/$fileName",
+    fortran = "cd $dir && gfortran $fileName -o $fileNameWithoutExt && $dir/$fileNameWithoutExt",
+    haskell = "runhaskell $dir/$fileName",
+    dart = "dart run $dir/$fileName",
+    pascal = "cd $dir && fpc $fileName && $dir/$fileNameWithoutExt",
+    nim = "nim compile --run $dir/$fileName"
 }
 
 M.extensions = {
     python = { "py" },
+    java = { "java" },
+    typescript = { "ts" },
+    rust = { "rs" },
+    c = { "c" },
+    cpp = { "cpp", "cxx", "hpp", "hxx" },
+    javascript = { "js" },
+    php = { "php" },
+    ruby = { "rb" },
+    go = { "go" },
+    perl = { "pl" },
+    bash = { "sh" },
+    lisp = { "lisp" },
+    fortran = { "f", "f90" },
+    haskell = { "hs" },
+    dart = { "dart" },
+    pascal = { "pas" },
+    nim = { "nim" }
 }
 
-M.bindings = {} -- Table to store bindings for each buffer
-
 function M.setup(opts)
-    -- ... original setup logic ...
     M.opts = opts or {}
     M.opts.keymap = M.opts.keymap or '<F5>'
 
@@ -28,8 +87,8 @@ function M.setup(opts)
     end
 
     -- if M.opts.run_tmux ~= false then
-    --     vim.cmd("TermExec cmd='tmux new-session -A -s nvim'")
-    --     vim.cmd("ToggleTerm")
+    --   vim.cmd("TermExec cmd='tmux new-session -A -s nvim'")
+    --   vim.cmd("ToggleTerm")
     -- end
     if M.opts.run_tmux == true then
         vim.cmd("TermExec cmd='tmux new-session -A -s nvim'")
@@ -39,69 +98,6 @@ function M.setup(opts)
     -- Set the keymap
     vim.api.nvim_set_keymap('n', M.opts.keymap, ':lua require("code-runner").run_code()<CR>',
         { noremap = true, silent = true })
-    -- Bind a function to run on buffer/window changes
-    vim.api.nvim_command([[
-    autocmd BufWinEnter * lua require("code-runner").update_bindings()
-  ]])
-end
-
-function M.find_coderun_json(dir)
-    local path = dir .. "/coderun.json"
-    if vim.fn.filereadable(path) then
-        return path
-    end
-    local parent_dir = vim.fn.fnamemodify(dir, ":h")
-    if parent_dir ~= dir then -- Avoid infinite loop
-        return M.find_coderun_json(parent_dir)
-    end
-end
-
-function M.load_coderun_config(path)
-    local config = vim.fn.json_decode(vim.fn.readfile(path))
-    return config
-end
-
-function M.update_bindings()
-    local bufnr = vim.api.nvim_get_current_buf()
-    local file_path = vim.api.nvim_buf_get_name(bufnr)
-    local coderun_path = M.find_coderun_json(vim.fn.fnamemodify(file_path, ":h"))
-
-    -- Unbind previous bindings for this buffer
-    if M.bindings[bufnr] then
-        for _, binding in pairs(M.bindings[bufnr]) do
-            vim.api.nvim_del_keymap(binding.mode, binding.key)
-        end
-        M.bindings[bufnr] = nil
-    end
-
-    if coderun_path then
-        local config = M.load_coderun_config(coderun_path)
-        local bindings = {}
-        for name, action in pairs(config) do
-            local key = action.keybind or name
-            vim.api.nvim_set_keymap('n', key, string.format(":lua require('code-runner').run_command('%s')<CR>", name),
-                { noremap = true, silent = true })
-            table.insert(bindings, { mode = 'n', key = key }) -- Store binding for unbind later
-        end
-        M.bindings[bufnr] = bindings
-    else
-        -- Use default commands
-        -- ... (implement logic to set default keymap if needed) ...
-    end
-end
-
-function M.run_command(name)
-    local bufnr = vim.api.nvim_get_current_buf()
-    local file_path = vim.api.nvim_buf_get_name(bufnr)
-    local coderun_path = M.find_coderun_json(vim.fn.fnamemodify(file_path, ":h"))
-    local config = coderun_path and M.load_coderun_config(coderun_path) or {}
-    local command = config[name] and config[name].command
-
-    if command then
-        -- ... (process command with placeholders and execute) ...
-    else
-        print("Error: Command '" .. name .. "' not found in coderun.json or default commands")
-    end
 end
 
 function M.run_code()
@@ -133,6 +129,18 @@ function M.run_code()
             end
         end
         if language then break end
+    end
+
+    local cmd = M.commands[language]
+
+    if cmd then
+        cmd = cmd:gsub("$dir", file_dir)
+        cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
+        cmd = cmd:gsub("$fileName", file_name)
+        print("Running command: " .. cmd)
+        vim.cmd("execute 'TermExec cmd=\"" .. cmd .. "\"'")
+    else
+        print("Error: Could not construct command for language " .. (language or file_extension))
     end
 end
 
