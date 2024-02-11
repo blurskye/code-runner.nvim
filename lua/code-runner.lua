@@ -163,7 +163,7 @@ M.extensions = {
     nim = { "nim" }
 }
 
-local json = require 'json'
+
 
 local function find_coderun_json(dir)
     local file_path = dir .. "/coderun.json"
