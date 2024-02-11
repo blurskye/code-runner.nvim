@@ -58,7 +58,11 @@ function M.setup(opts)
         end
     end
 
-    if M.opts.run_tmux ~= false then
+    -- if M.opts.run_tmux ~= false then
+    --     vim.cmd("TermExec cmd='tmux new-session -A -s nvim'")
+    --     vim.cmd("ToggleTerm")
+    -- end
+    if M.opts.run_tmux == true then
         vim.cmd("TermExec cmd='tmux new-session -A -s nvim'")
         vim.cmd("ToggleTerm")
     end
