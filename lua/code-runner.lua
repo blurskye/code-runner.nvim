@@ -161,11 +161,21 @@ M.extensions = {
     nim = { "nim" }
 }
 
+-- function M.find_coderun_json(dir)
+--     local f = io.open(dir .. "/coderun.json", "r")
+--     if f ~= nil then
+--         io.close(f)
+--         return dir .. "/coderun.json"
+--     elseif dir == "" then
+--         return nil
+--     else
+--         return M.find_coderun_json(vim.fn.fnamemodify(dir, ":h"))
+--     end
+-- end
 function M.find_coderun_json(dir)
-    local f = io.open(dir .. "/coderun.json", "r")
-    if f ~= nil then
-        io.close(f)
-        return dir .. "/coderun.json"
+    local file_path = dir .. "/coderun.json"
+    if vim.loop.fs_stat(file_path) then
+        return file_path
     elseif dir == "" then
         return nil
     else
