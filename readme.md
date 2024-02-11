@@ -5,7 +5,7 @@ This is a Neovim plugin that allows you to run code in various languages directl
 ## Installation
 
 You can install this plugin with your favorite plugin manager. Here's an example using `lazy.nvim`:
-## for lazy.nvim use
+### for lazy.nvim use
 ```lua
 {
   {
@@ -42,7 +42,14 @@ require('code-runner').setup({
 })
 ```
 
-In the `commands` and `extensions` tables, you can overwrite the default commands and extensions for each language. The `$dir`, `$fileName`, and `$fileNameWithoutExt` placeholders in the commands will be replaced with the directory, file name, and file name without extension of the current file, respectively.
+In the `commands` table, you can overwrite the default commands for each language. The following placeholders in the commands will be replaced with the corresponding values:
+
+- `$dir`: The directory of the current file.
+- `$fileName`: The name of the current file.
+- `$fileNameWithoutExt`: The name of the current file without the extension.
+- `$fileExtension`: The extension of the current file.
+- `$filePath`: The full path of the current file.
+
 
 If `run_tmux` is set to `true`, the plugin will run `tmux new-session -A -s nvim` and `ToggleTerm` when the `setup` function is called. This can be useful if you want to run your code in a tmux session.
 
