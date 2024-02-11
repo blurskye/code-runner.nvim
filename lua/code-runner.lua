@@ -226,18 +226,8 @@ function M.run_code()
     local file_name_without_ext = vim.fn.fnamemodify(file_path, ":r:t")
     local file_extension = vim.fn.fnamemodify(file_path, ":e")
 
-    local language
-    for lang, exts in pairs(M.extensions) do
-        for _, ext in ipairs(exts) do
-            if ext == file_extension then
-                language = lang
-                break
-            end
-        end
-        if language then break end
-    end
+    local cmd = M.commands["run the project"] or M.commands[file_extension]
 
-    local cmd = M.commands[language]
     if cmd then
         cmd = cmd:gsub("$dir", file_dir)
         cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
