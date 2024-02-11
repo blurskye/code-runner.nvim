@@ -1,5 +1,5 @@
 <head>
-<div align="center">
+<div align="center" style="background-">
 
 ### Stand Up For <span style="color:green"> Humanity </span>, Oppose <span style="color:red">Genocide</span> and <span style="color:red">Suppression</span>
 ### Condemn <span style="color:red">75 years </span> of <span style="color:red"> Brutal Occupation </span> and <span style="color:red"> Genocide </span>
