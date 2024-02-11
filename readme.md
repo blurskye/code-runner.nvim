@@ -56,6 +56,8 @@ If `run_tmux` is set to `true`, the plugin will run `tmux new-session -A -s nvim
 ## Usage
 
 After you've set up the plugin, you can run your code by pressing the keymap you've set in the configuration (default is `<F5>`). The plugin will run the appropriate command for the language of the current file.
+### ⚠️ 
+- it is adviceable to learn how to use tmux and configure tmux to your likeing and to enable run_tmux,
 
 ## Contributing
 
