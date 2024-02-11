@@ -1,4 +1,21 @@
 local M = {}
+local luv = vim.loop
+
+function M.get_commands()
+    local dir = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":p:h")
+    local commands = M.commands
+    while dir ~= "/" do
+        local coderun_file = dir .. "/coderun.json"
+        if luv.fs_stat(coderun_file) then
+            local file = io.open(coderun_file, "r")
+            commands = vim.fn.json_decode(file:read("*all"))
+            file:close()
+            break
+        end
+        dir = vim.fn.fnamemodify(dir, ":h")
+    end
+    return commands
+end
 
 M.commands = {
     java = "cd $dir && javac $fileName && java $fileNameWithoutExt",
@@ -102,8 +119,8 @@ function M.run_code()
         end
         if language then break end
     end
-
-    local cmd = M.commands[language]
+    local commands = M.get_commands()
+    local cmd = commands[language]
 
     if cmd then
         cmd = cmd:gsub("$dir", file_dir)
