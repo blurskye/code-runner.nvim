@@ -172,14 +172,22 @@ M.extensions = {
 --         return M.find_coderun_json(vim.fn.fnamemodify(dir, ":h"))
 --     end
 -- end
-function M.find_coderun_json(dir)
+function M.find_coderun_json(dir, depth)
+    depth = depth or 0
+    if depth > 10 then
+        return nil
+    end
+
     local file_path = dir .. "/coderun.json"
     if vim.loop.fs_stat(file_path) then
         return file_path
-    elseif dir == "" then
-        return nil
     else
-        return M.find_coderun_json(vim.fn.fnamemodify(dir, ":h"))
+        local parent_dir = vim.fn.fnamemodify(dir, ":h")
+        if parent_dir == dir then
+            return nil
+        else
+            return M.find_coderun_json(parent_dir, depth + 1)
+        end
     end
 end
 
