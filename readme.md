@@ -1,13 +1,15 @@
+<head>
 <div align="center">
 
-### Stand Up For Humanity, Oppose Genocide and Suppression
-### Condemn 75 years of Brutal Occupation and Genocide
-### <span style="color:green">Support PALESTINE![Animated Emoji](https://path-to-your-gif.com/animated-emoji.gif)</span>
-
+### Stand Up For <span style="color:green"> Humanity </span>, Oppose <span style="color:red">Genocide</span> and <span style="color:red">Suppression</span>
+### Condemn <span style="color:red">75 years </span> of <span style="color:red"> Brutal Occupation </span> and <span style="color:red"> Genocide </span>
+### <span style="color:green">Support PALESTINE<img src="https://raw.githubusercontent.com/blurskye/code-runner.nvim/main/icon.png" alt="heart" style="vertical-align: middle; position: relative; top: -2px;"></span>
 </div>
+</head>
 <div align="center">
 
-# 🚀 Code Runner for Neovim 🚀
+<body>
+<h1> 🚀 Code Runner for Neovim 🚀 </h1>
 
 </div>
 
@@ -48,11 +50,19 @@ require('code-runner').setup({
   },
   extensions = { -- File extensions for languages.
     python = { "py" },
+
+  },
+  run_tmux = false, -- If true, runs 'tmux new-session -A -s nvim' and 'ToggleTerm'. Default is false.
 })
 ```
+## Usage
 
+After you've set up the plugin, you can run your code by pressing the keymap you've set in the configuration (default is `<F5>`). The plugin will run the appropriate command for the language of the current file.
+#⚠️ 
 <div align="center">
 
 ## 🚀 Ready to launch your code directly from Neovim? Install Code Runner now! 🚀
+### ⚠️it is advisable to learn how to use tmux and configure tmux to your likeing and to enable run_tmux, however by default this plugin wont use tmux⚠️
 
 </div>
+</body>
