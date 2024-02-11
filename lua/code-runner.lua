@@ -181,8 +181,10 @@ function M.setup(opts)
     if coderun_json_path ~= nil then
         local coderun_json = vim.fn.json_decode(vim.fn.readfile(coderun_json_path))
         for k, v in pairs(coderun_json) do
-            M.commands[k] = v.command
-            M.opts.keymap = v.keybind
+            if type(v) == "table" and v.command then
+                M.commands[k] = v.command
+                M.opts.keymap = v.keybind or M.opts.keymap
+            end
         end
     else
         if M.opts.commands then
