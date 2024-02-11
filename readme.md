@@ -5,11 +5,14 @@ This is a Neovim plugin that allows you to run code in various languages directl
 ## Installation
 
 You can install this plugin with your favorite plugin manager. Here's an example using `lazy.nvim`:
-
+## for lazy.nvim use
 ```lua
-lvim.plugins = {
+{
   {
-    "yourusername/code-runner.nvim",
+    "blueskye/code-runner.nvim",
+    dependencies = {
+      "akinsho/toggleterm.nvim",
+    },
     config = function()
       require('code-runner').setup({
         -- configuration options
@@ -19,7 +22,6 @@ lvim.plugins = {
 }
 ```
 
-Don't forget to run `:PackerInstall` to actually install the plugin.
 
 ## Configuration
 
@@ -28,13 +30,13 @@ You can configure this plugin by calling the `setup` function. Here's an example
 ```lua
 require('code-runner').setup({
   keymap = '<F5>', -- Keymap to run the code. Default is '<F5>'.
+  -- it has a lot of language run commands by default, can add or overwrite them as needed like this
   commands = { -- Custom commands for languages.
     python = "python3 -u $dir/$fileName",
-    -- Add more commands as needed.
   },
   extensions = { -- File extensions for languages.
     python = { "py" },
-    -- Add more extensions as needed.
+
   },
   run_tmux = true, -- If true, runs 'tmux new-session -A -s nvim' and 'ToggleTerm'. Default is false.
 })
