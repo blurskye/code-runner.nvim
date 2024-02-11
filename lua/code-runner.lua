@@ -204,6 +204,58 @@ function M.setup(opts)
         { noremap = true, silent = true })
 end
 
+-- function M.run_code()
+--     print("Starting")
+--     local bufnr = vim.api.nvim_win_get_buf(0)
+--     if vim.api.nvim_buf_get_option(bufnr, "buftype") == "terminal" then
+--         local wins = vim.api.nvim_tabpage_list_wins(0)
+--         for i, win in ipairs(wins) do
+--             if win == vim.api.nvim_get_current_win() and i > 1 then
+--                 bufnr = vim.api.nvim_win_get_buf(wins[i - 1])
+--                 break
+--             end
+--         end
+--     end
+--     local file_path = vim.api.nvim_buf_get_name(bufnr)
+--     local file_dir = vim.fn.fnamemodify(file_path, ":h")
+--     local file_name = vim.fn.fnamemodify(file_path, ":t")
+--     local file_name_without_ext = vim.fn.fnamemodify(file_path, ":r:t")
+--     local file_extension = vim.fn.fnamemodify(file_path, ":e")
+
+--     local coderun_json_path = M.find_coderun_json(file_dir)
+--     if coderun_json_path ~= nil then
+--         local coderun_json = vim.fn.json_decode(vim.fn.readfile(coderun_json_path))
+--         for k, v in pairs(coderun_json) do
+--             if type(v) == "table" and v.command then
+--                 M.commands[k] = v.command
+--                 M.opts.keymap = v.keybind or M.opts.keymap
+--             end
+--         end
+--     else
+--         if M.opts.commands then
+--             for k, v in pairs(M.opts.commands) do
+--                 M.commands[k] = v
+--             end
+--         end
+--         if M.opts.extensions then
+--             for k, v in pairs(M.opts.extensions) do
+--                 M.extensions[k] = v
+--             end
+--         end
+--     end
+
+--     local cmd = M.commands["run the project"] or M.commands[file_extension]
+
+--     if cmd then
+--         cmd = cmd:gsub("$dir", file_dir)
+--         cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
+--         cmd = cmd:gsub("$fileName", file_name)
+--         print("Running command: " .. cmd)
+--         vim.cmd("execute 'TermExec cmd=\"" .. cmd .. "\"'")
+--     else
+--         print("Error: Could not construct command for language " .. (language or file_extension))
+--     end
+-- end
 function M.run_code()
     print("Starting")
     local bufnr = vim.api.nvim_win_get_buf(0)
@@ -244,7 +296,18 @@ function M.run_code()
         end
     end
 
-    local cmd = M.commands["run the project"] or M.commands[file_extension]
+    local language
+    for lang, exts in pairs(M.extensions) do
+        for _, ext in ipairs(exts) do
+            if ext == file_extension then
+                language = lang
+                break
+            end
+        end
+        if language then break end
+    end
+
+    local cmd = M.commands["run the project"] or M.commands[language]
 
     if cmd then
         cmd = cmd:gsub("$dir", file_dir)
