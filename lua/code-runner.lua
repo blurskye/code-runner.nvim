@@ -1,37 +1,5 @@
 local M = {}
 
-function M.find_coderun_file(dir)
-    local file_path = dir .. "/coderun.json"
-    if vim.fn.filereadable(file_path) then
-        return file_path
-    elseif dir == "/" then
-        return nil
-    else
-        return M.find_coderun_file(vim.fn.fnamemodify(dir, ":h"))
-    end
-end
-
-function M.bind_keybindings()
-    local coderun_file = M.find_coderun_file(vim.fn.getcwd())
-    if coderun_file then
-        local coderun = vim.fn.json_decode(vim.fn.readfile(coderun_file))
-        for task, info in pairs(coderun) do
-            M.commands[task] = info.command
-            M.keybindings[task] = info.keybind
-        end
-    end
-    for task, keybind in pairs(M.keybindings) do
-        vim.api.nvim_set_keymap('n', keybind, ':lua require("code-runner").run_code("' .. task .. '")<CR>',
-            { noremap = true, silent = true })
-    end
-end
-
-function M.unbind_keybindings()
-    for task, keybind in pairs(M.keybindings) do
-        vim.api.nvim_del_keymap('n', keybind)
-    end
-end
-
 M.commands = {
     java = "cd $dir && javac $fileName && java $fileNameWithoutExt",
     python = "python3 -u $dir/$fileName",
@@ -74,86 +42,56 @@ M.extensions = {
     nim = { "nim" }
 }
 
-function M.setup(opts)
-    M.opts = opts or {}
-    M.opts.keymap = M.opts.keymap or '<F5>'
-
-
-    -- Overwrite the default commands and extensions with the user-provided commands
-    if M.opts.commands then
-        for k, v in pairs(M.opts.commands) do
-            M.commands[k] = v
-        end
+function M.find_coderun_file(dir)
+    local file_path = dir .. "/coderun.json"
+    if vim.fn.filereadable(file_path) == 1 then
+        return file_path
+    elseif dir == "/" then
+        return nil
+    else
+        return M.find_coderun_file(vim.fn.fnamemodify(dir, ":h"))
     end
-    if M.opts.extensions then
-        for k, v in pairs(M.opts.extensions) do
-            M.extensions[k] = v
-        end
-    end
-
-    -- if M.opts.run_tmux ~= false then
-    --     vim.cmd("TermExec cmd='tmux new-session -A -s nvim'")
-    --     vim.cmd("ToggleTerm")
-    -- end
-    if M.opts.run_tmux == true then
-        vim.cmd("TermExec cmd='tmux new-session -A -s nvim'")
-        vim.cmd("ToggleTerm")
-    end
-
-    -- Set the keymap
-    vim.api.nvim_set_keymap('n', M.opts.keymap, ':lua require("code-runner").run_code()<CR>',
-        { noremap = true, silent = true })
-    vim.cmd([[
-        augroup CodeRunner
-            autocmd!
-            autocmd BufEnter * lua require('code-runner').unbind_keybindings()
-            autocmd BufEnter * lua require('code-runner').bind_keybindings()
-        augroup END
-    ]])
 end
 
 function M.run_code()
-    print("Starting")
-    -- Get the current window's buffer number
-    local bufnr = vim.api.nvim_win_get_buf(0)
-    -- Check if the current window contains a terminal, if so then run the code in the window above
-    if vim.api.nvim_buf_get_option(bufnr, "buftype") == "terminal" then
-        local wins = vim.api.nvim_tabpage_list_wins(0)
-        for i, win in ipairs(wins) do
-            if win == vim.api.nvim_get_current_win() and i > 1 then
-                bufnr = vim.api.nvim_win_get_buf(wins[i - 1])
-                break
-            end
+    local file_name = vim.fn.expand("%:t")
+    local file_dir = vim.fn.expand("%:p:h")
+    local file_name_without_ext = vim.fn.fnamemodify(file_name, ":r")
+
+    local coderun_file = M.find_coderun_file(file_dir)
+    if coderun_file then
+        local file = io.open(coderun_file, "r")
+        local content = file:read("*all")
+        file:close()
+        local coderun = vim.fn.json_decode(content)
+        local task = coderun["run the project"]
+        if task then
+            local cmd = task["command"]
+            cmd = cmd:gsub("$dir", file_dir)
+            cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
+            cmd = cmd:gsub("$fileName", file_name)
+            print("Running command: " .. cmd)
+            vim.cmd("execute 'TermExec cmd=\"" .. cmd .. "\"'")
+            return
         end
     end
-    local file_path = vim.api.nvim_buf_get_name(bufnr)
-    local file_dir = vim.fn.fnamemodify(file_path, ":h")
-    local file_name = vim.fn.fnamemodify(file_path, ":t")
-    local file_name_without_ext = vim.fn.fnamemodify(file_path, ":r:t")
-    local file_extension = vim.fn.fnamemodify(file_path, ":e")
 
-    local language
+    local file_ext = vim.fn.expand("%:e")
     for lang, exts in pairs(M.extensions) do
         for _, ext in ipairs(exts) do
-            if ext == file_extension then
-                language = lang
-                break
+            if ext == file_ext then
+                local cmd = M.commands[lang]
+                cmd = cmd:gsub("$dir", file_dir)
+                cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
+                cmd = cmd:gsub("$fileName", file_name)
+                print("Running command: " .. cmd)
+                vim.cmd("execute 'TermExec cmd=\"" .. cmd .. "\"'")
+                return
             end
         end
-        if language then break end
     end
 
-    local cmd = M.commands[language]
-
-    if cmd then
-        cmd = cmd:gsub("$dir", file_dir)
-        cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
-        cmd = cmd:gsub("$fileName", file_name)
-        print("Running command: " .. cmd)
-        vim.cmd("execute 'TermExec cmd=\"" .. cmd .. "\"'")
-    else
-        print("Error: Could not construct command for language " .. (language or file_extension))
-    end
+    print("No command found for this file type")
 end
 
 return M
