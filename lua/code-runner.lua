@@ -177,28 +177,6 @@ function M.setup(opts)
     M.opts = opts or {}
     M.opts.keymap = M.opts.keymap or '<F5>'
 
-    local coderun_json_path = M.find_coderun_json(vim.fn.getcwd())
-    if coderun_json_path ~= nil then
-        local coderun_json = vim.fn.json_decode(vim.fn.readfile(coderun_json_path))
-        for k, v in pairs(coderun_json) do
-            if type(v) == "table" and v.command then
-                M.commands[k] = v.command
-                M.opts.keymap = v.keybind or M.opts.keymap
-            end
-        end
-    else
-        if M.opts.commands then
-            for k, v in pairs(M.opts.commands) do
-                M.commands[k] = v
-            end
-        end
-        if M.opts.extensions then
-            for k, v in pairs(M.opts.extensions) do
-                M.extensions[k] = v
-            end
-        end
-    end
-
     if M.opts.run_tmux == true then
         vim.cmd("TermExec cmd='tmux new-session -A -s nvim'")
         vim.cmd("ToggleTerm")
@@ -225,6 +203,28 @@ function M.run_code()
     local file_name = vim.fn.fnamemodify(file_path, ":t")
     local file_name_without_ext = vim.fn.fnamemodify(file_path, ":r:t")
     local file_extension = vim.fn.fnamemodify(file_path, ":e")
+
+    local coderun_json_path = M.find_coderun_json(file_dir)
+    if coderun_json_path ~= nil then
+        local coderun_json = vim.fn.json_decode(vim.fn.readfile(coderun_json_path))
+        for k, v in pairs(coderun_json) do
+            if type(v) == "table" and v.command then
+                M.commands[k] = v.command
+                M.opts.keymap = v.keybind or M.opts.keymap
+            end
+        end
+    else
+        if M.opts.commands then
+            for k, v in pairs(M.opts.commands) do
+                M.commands[k] = v
+            end
+        end
+        if M.opts.extensions then
+            for k, v in pairs(M.opts.extensions) do
+                M.extensions[k] = v
+            end
+        end
+    end
 
     local cmd = M.commands["run the project"] or M.commands[file_extension]
 
