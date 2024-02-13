@@ -1,11 +1,12 @@
 <head>
-<div>
+<div align="center">
 <img src="https://raw.githubusercontent.com/blurskye/code-runner.nvim/main/banner.png">
 
 <!-- ### Stand Up For <span style="color:green"> Humanity </span>, Oppose <span style="color:red">Genocide</span> and <span style="color:red">Suppression</span>
 ### Condemn <span style="color:red">75 years </span> of <span style="color:red"> Brutal Occupation </span> and <span style="color:red"> Genocide </span>
 ### <span style="color:green">Support PALESTINE<img src="https://raw.githubusercontent.com/blurskye/code-runner.nvim/main/icon.png" alt="heart" style="vertical-align: middle; position: relative; top: -2px;"></span>
 </div> -->
+</div align="center">
 </head>
 <div align="center">
 
