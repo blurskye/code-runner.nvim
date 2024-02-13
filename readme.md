@@ -72,7 +72,8 @@ but for people who need a bit more juice out of the plugin
     "keybind": "<F5>"
   },
   "deploy the project":{
-    "command" : "npm run deploy"
+    "command" : "npm run deploy",
+    "keybind":"<F6>"
   }
   -- $dir uses the coderun.json's directory and rest of the coderun variables are the same as the currently open script
 }
