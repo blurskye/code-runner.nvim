@@ -1,5 +1,5 @@
 <head>
-<div align="center">
+<div>
 <img src="https://raw.githubusercontent.com/blurskye/code-runner.nvim/main/banner.png">
 
 <!-- ### Stand Up For <span style="color:green"> Humanity </span>, Oppose <span style="color:red">Genocide</span> and <span style="color:red">Suppression</span>
@@ -57,52 +57,29 @@ require('code-runner').setup({
 })
 ```
 ## Usage
+for beginners
 
 After you've set up the plugin, you can run your code by pressing the keymap you've set in the configuration (default is `<F5>`). The plugin will run the appropriate command for the language of the current file.
+but for people who need a bit more juice out of the plugin
 
-# Experimental Features
-<details>
-<summary>Click to expand!</summary>
-
-- <details>
-  <summary>Experimental Feature: Ability to have coderun.json</summary>
-
-  ```json
-  {
-    "run project": {
-      "command" : "npm run start",
-      "keybind": "<F7>"
-    },
-    "deploy project": {
-      "command": "npm run deploy",
-      "keybind": "<F6>"
-    }
+- it is multi modal
+- - it searchs in the script dir for a coderun.json file, expects it to be in the following format 
+```json
+{
+  "run the project"{
+    "command":"npm run start",
+    "keybind": "<F5>"
+  },
+  "deploy the project":{
+    "command" : "npm run deploy"
   }
-  ```
-    This file can be in any directory above or in the same directory as the script. If it's not found, the default commands for each language will be used. These defaults can also be changed from the setup function. See above for more details.
+  -- $dir uses the coderun.json's directory and rest of the coderun variables are the same as the currently open script
+}
+```
+- - However if a coderun.json is not found, it will defualt to language default to run the code, in which case it can be the ones passed in setup function(it overwrites the ones set by default in app)
 
-  to use this experimental feature, you will have to use the branch alt-testing
-  (will be merged in a few weeks of testing)
-  like this
-  
-    ```lua
-    {
-      {
-        "blueskye/code-runner.nvim",
-        branch = "alt-testing",
-        dependencies = {
-          "akinsho/toggleterm.nvim",
-        },
-        config = function()
-          require('code-runner').setup({
-            -- configuration options
-          })
-        end,
-      }
-    }
-    ```
-</details>
-</details>
+
+
 <div align="center">
 
 ## 🚀 Ready to launch your code directly from Neovim? Install Code Runner now! 🚀
@@ -111,3 +88,12 @@ After you've set up the plugin, you can run your code by pressing the keymap you
 
 </div>
 </body>
+
+# 🌟 We Love Your Contributions! 🌟
+
+Got an idea to make this plugin even better? We'd love to hear it! 📣
+
+- **Feature Enhancements**: If you have a suggestion, don't hesitate to open an issue. We're always looking for ways to improve! 💡
+- **Pull Requests**: Ready to roll up your sleeves and make a change yourself? Submit a pull request! We appreciate your initiative. 🛠️
+
+Thank you for using this plugin and being a part of our community. Your support means the world to us! 🌍💖
