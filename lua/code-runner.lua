@@ -127,6 +127,15 @@ function M.adjust_command_path()
     return vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h") -- Default to current dir
 end
 
+local function keybind_exists(keybind)
+    local keymaps = vim.api.nvim_get_keymap('n') -- 'n' for normal mode
+    for _, map in pairs(keymaps) do
+        if map.lhs == keybind then
+            return true
+        end
+    end
+    return false
+end
 function M.bind_commands(json_data)
     if (json_data) then
         for _, v in pairs(json_data) do
@@ -150,19 +159,16 @@ function M.bind_commands(json_data)
 
 
                 -- Check if the keybind already exists
-                local exists = vim.api.nvim_exist_autocmd({
-                    group = vim.api.nvim_get_runtime_path(),
-                    cmd = "nnoremap " .. v.keybind,
-                })
+                -- local exists = keybind_exists(v.keybind)
 
-                if not exists then
+                if true then
                     -- Keybind doesn't exist, safe to bind it
                     vim.api.nvim_set_keymap('n', v.keybind,
                         ":TermExec cmd='" .. cmd .. "'<CR>",
                         { noremap = true, silent = true })
                 else
                     -- Keybind already exists, handle appropriately
-                    -- print("Keybind " .. v.keybind .. " already exists! Skipping binding.")
+                    print("Keybind " .. v.keybind .. " already exists! Skipping binding.")
                 end
             end
         end
@@ -288,7 +294,6 @@ function M.setup(opts)
         M.coderun_json = M.generate_commands_table(vim.fn.expand("%:e"))
         M.bind_commands(M.coderun_json)
     end
-    -- print(M.table_to_string(M.json_data))
     vim.api.nvim_exec([[
             augroup CodeRunner
                 autocmd!
@@ -316,9 +321,9 @@ end
 
 function M.handle_buffer_exit()
     local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
-    -- print("buff type if (" .. buftype .. ")")
+    print("buff type if (" .. buftype .. ")")
     if buftype == 'nofile' then
-        -- print("tried to unbind")
+        print("tried to unbind")
         if M.coderun_json then
             M.unbind_commands(M.coderun_json)
         else
