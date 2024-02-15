@@ -137,6 +137,7 @@ end
 function M.send_interrupt()
     -- Check if the current buffer is a terminal
     local buf_type = vim.api.nvim_buf_get_option(vim.api.nvim_get_current_buf(), 'buftype')
+    print("buf type if (" .. buf_type .. ")")
     if buf_type ~= 'terminal' then
         vim.api.nvim_exec(':ToggleTerm', false)
     end
