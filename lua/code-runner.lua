@@ -134,12 +134,34 @@ local function keybind_exists(keybind)
     end
     return false
 end
+-- function M.send_interrupt()
+--     -- Check if the current buffer is a terminal
+--     local buf_type = vim.api.nvim_buf_get_option(vim.api.nvim_get_current_buf(), 'buftype')
+--     print("buf type if (" .. buf_type .. ")")
+--     if buf_type ~= 'terminal' then
+--         vim.api.nvim_exec(':ToggleTerm', false)
+--     end
+--     vim.defer_fn(function()
+--         vim.api.nvim_exec('startinsert', false)
+--         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
+--     end, 300)
+-- end
+
 function M.send_interrupt()
     -- Check if the current buffer is a terminal
     local buf_type = vim.api.nvim_buf_get_option(vim.api.nvim_get_current_buf(), 'buftype')
     print("buf type if (" .. buf_type .. ")")
     if buf_type ~= 'terminal' then
-        vim.api.nvim_exec(':ToggleTerm', false)
+        -- Get a list of all open buffers
+        local buffers = vim.api.nvim_list_bufs()
+        for _, buf in ipairs(buffers) do
+            -- Check if the buffer is a terminal
+            if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
+                -- Switch to the terminal buffer
+                vim.api.nvim_set_current_buf(buf)
+                break
+            end
+        end
     end
     vim.defer_fn(function()
         vim.api.nvim_exec('startinsert', false)
