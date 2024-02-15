@@ -134,6 +134,16 @@ local function keybind_exists(keybind)
     end
     return false
 end
+function M.send_interrupt()
+    -- Check if the current buffer is a terminal
+    local buf_type = vim.api.nvim_buf_get_option(vim.api.nvim_get_current_buf(), 'buftype')
+    if buf_type ~= 'terminal' then
+        vim.api.nvim_exec(':ToggleTerm', false)
+    end
+    vim.api.nvim_exec('startinsert', false)
+    vim.api.nvim_input('<C-c>')
+end
+
 function M.bind_commands(json_data)
     if (json_data) then
         for _, v in pairs(json_data) do
@@ -301,6 +311,8 @@ function M.setup(opts)
                 autocmd BufLeave * lua require('code-runner').handle_buffer_exit()
                 augroup END
                 ]], false)
+    M.opts.interrupt_keymap = M.opts.interrupt_keymap or '<F2>'
+    vim.api.nvim_set_keymap('n', M.opts.interrupt_keymap, M.send_interrupt(), { noremap = true, silent = true })
 end
 
 function M.handle_buffer_enter()
