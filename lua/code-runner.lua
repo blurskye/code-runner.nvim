@@ -142,7 +142,8 @@ function M.send_interrupt()
         vim.api.nvim_exec(':ToggleTerm', false)
     end
     vim.api.nvim_exec('startinsert', false)
-    vim.api.nvim_input('<C-c>')
+    -- vim.api.nvim_input('<C-c>')
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
 end
 
 function M.bind_commands(json_data)
@@ -175,12 +176,9 @@ function M.bind_commands(json_data)
                         v.command .. "<CR>",
                         { noremap = true, silent = true })
                 else
-                    -- Keybind doesn't exist, safe to bind it
                     vim.api.nvim_set_keymap('n', v.keybind,
                         ":TermExec cmd='" .. cmd .. "'<CR>",
                         { noremap = true, silent = true })
-                    -- Keybind already exists, handle appropriately
-                    print("Keybind " .. v.keybind .. " already exists! Skipping binding.")
                 end
             end
         end
@@ -313,7 +311,8 @@ function M.setup(opts)
                 augroup END
                 ]], false)
     M.opts.interrupt_keymap = M.opts.interrupt_keymap or '<F2>'
-    vim.api.nvim_set_keymap('n', M.opts.interrupt_keymap, M.send_interrupt(), { noremap = true, silent = true })
+    vim.api.nvim_set_keymap('n', M.opts.interrupt_keymap, ":lua require('code-runner').send_interrupt()",
+        { noremap = true, silent = true })
 end
 
 function M.handle_buffer_enter()
