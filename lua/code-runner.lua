@@ -158,7 +158,7 @@ function M.send_interrupt()
             -- Check if the buffer is a terminal
             if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
                 -- Navigate to the terminal buffer
-                vim.api.nvim_win_set_buf(vim.api.nvim_get_current_win(), buf)
+                vim.api.nvim_command('buffer ' .. buf)
                 terminal_buf_found = true
                 break
             end
@@ -171,7 +171,7 @@ function M.send_interrupt()
     vim.defer_fn(function()
         vim.api.nvim_exec('startinsert', false)
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
-    end, 300)
+    end, 100)
 end
 
 function M.bind_commands(json_data)
