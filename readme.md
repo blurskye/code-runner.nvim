@@ -15,7 +15,10 @@
 
 </div>
 
-[![Watch the video](https://i.imgur.com/vKb2F1B.png)](https://raw.githubusercontent.com/blurskye/code-runner.nvim/files/test.mp4)
+
+https://github.com/blurskye/code-runner.nvim/assets/145671529/cf42120c-6b99-4cbe-a97e-953736591721
+
+
 This is a Neovim plugin that allows you to run code in various languages directly from your editor. It supports a wide range of languages out of the box and can be easily extended to support more.
 
 ## 📦 Installation
