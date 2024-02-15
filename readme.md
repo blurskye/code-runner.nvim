@@ -14,7 +14,7 @@
 <h1> 🚀 Code Runner for Neovim 🚀 </h1>
 
 </div>
-
+![example](https://raw.githubusercontent.com/blurskye/code-runner.nvim/files/test.mp4)
 This is a Neovim plugin that allows you to run code in various languages directly from your editor. It supports a wide range of languages out of the box and can be easily extended to support more.
 
 ## 📦 Installation
