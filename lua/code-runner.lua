@@ -150,17 +150,22 @@ end
 function M.send_interrupt()
     -- Check if the current buffer is a terminal
     local buf_type = vim.api.nvim_buf_get_option(vim.api.nvim_get_current_buf(), 'buftype')
-    print("buf type if (" .. buf_type .. ")")
+    local terminal_buf_found = false
     if buf_type ~= 'terminal' then
         -- Get a list of all open buffers
         local buffers = vim.api.nvim_list_bufs()
         for _, buf in ipairs(buffers) do
             -- Check if the buffer is a terminal
             if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
-                -- Switch to the terminal buffer
-                vim.api.nvim_set_current_buf(buf)
+                -- Navigate to the terminal buffer
+                vim.api.nvim_win_set_buf(vim.api.nvim_get_current_win(), buf)
+                terminal_buf_found = true
                 break
             end
+        end
+        if not terminal_buf_found then
+            -- Open a new terminal if no terminal buffer was found
+            vim.api.nvim_exec(':ToggleTerm', false)
         end
     end
     vim.defer_fn(function()
