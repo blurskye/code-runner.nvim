@@ -311,7 +311,7 @@ function M.setup(opts)
                 augroup END
                 ]], false)
     M.opts.interrupt_keymap = M.opts.interrupt_keymap or '<F2>'
-    vim.api.nvim_set_keymap('n', M.opts.interrupt_keymap, ":lua require('code-runner').send_interrupt()",
+    vim.api.nvim_set_keymap('n', M.opts.interrupt_keymap, ":lua require('code-runner').send_interrupt()<CR>",
         { noremap = true, silent = true })
 end
 
