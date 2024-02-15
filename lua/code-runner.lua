@@ -141,9 +141,10 @@ function M.send_interrupt()
     if buf_type ~= 'terminal' then
         vim.api.nvim_exec(':ToggleTerm', false)
     end
-    vim.api.nvim_exec('startinsert', false)
-    -- vim.api.nvim_input('<C-c>')
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
+    vim.defer_fn(function()
+        vim.api.nvim_exec('startinsert', false)
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
+    end, 300)
 end
 
 function M.bind_commands(json_data)
