@@ -161,12 +161,15 @@ function M.bind_commands(json_data)
                 -- Check if the keybind already exists
                 -- local exists = keybind_exists(v.keybind)
 
-                if true then
+                if string.sub(v.command, 1, 1) == ":" then
+                    vim.api.nvim_set_keymap('n', v.keybind,
+                        v.command .. "<CR>",
+                        { noremap = true, silent = true })
+                else
                     -- Keybind doesn't exist, safe to bind it
                     vim.api.nvim_set_keymap('n', v.keybind,
                         ":TermExec cmd='" .. cmd .. "'<CR>",
                         { noremap = true, silent = true })
-                else
                     -- Keybind already exists, handle appropriately
                     print("Keybind " .. v.keybind .. " already exists! Skipping binding.")
                 end
