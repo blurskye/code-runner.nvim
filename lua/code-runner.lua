@@ -118,10 +118,8 @@ end
 --     end
 -- end
 function M.adjust_command_path()
-    local data = M.coderun_json -- Accessing cached loaded data
-
-    if data then
-        return data.dir or vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h") -- Use data.dir or current dir
+    if M.coderun_json then
+        return M.coderun_json_dir
     end
 
     return vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h") -- Default to current dir
@@ -193,8 +191,7 @@ function M.load_json()
             file:close()
 
             local data = vim.fn.json_decode(content)
-
-            -- Return the whole JSON data as a Lua table
+            M.coderun_json_dir = json_path
             return data
         end
 
