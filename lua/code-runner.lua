@@ -191,7 +191,7 @@ function M.load_json()
             file:close()
 
             local data = vim.fn.json_decode(content)
-            M.coderun_json_dir = json_path
+            M.coderun_json_dir = file_dir
             return data
         end
 
