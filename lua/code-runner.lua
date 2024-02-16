@@ -190,7 +190,7 @@ function M.send_interrupt()
             vim.defer_fn(function()
                 -- Switch back to the original window
                 vim.api.nvim_set_current_win(current_win)
-            end, 200)
+            end, 50)
         end, 100)
     end
 end
