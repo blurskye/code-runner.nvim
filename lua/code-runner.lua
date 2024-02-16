@@ -179,7 +179,7 @@ function M.send_interrupt()
             vim.api.nvim_exec('startinsert', false)
             vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
             -- Switch back to the original window
-        end, 100)
+        end, 300)
         vim.api.nvim_set_current_win(current_win)
     end
 end
