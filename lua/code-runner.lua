@@ -235,12 +235,14 @@ function M.send_interrupt()
                 if current_mode:sub(1, 1) == 'i' then
                     vim.defer_fn(function()
                         vim.api.nvim_exec('startinsert', false)
+                        M.interupting = false
                     end, 50)
+                else
+                    M.interupting = false
                 end
             end, 50)
         end, 100)
     end
-    M.interupting = false
 end
 
 function M.bind_commands(json_data)
