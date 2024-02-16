@@ -151,14 +151,15 @@ function M.send_interrupt()
     -- Check if the current buffer is a terminal
     local buf_type = vim.api.nvim_buf_get_option(vim.api.nvim_get_current_buf(), 'buftype')
     local terminal_buf_found = false
-    local terminal_buf = nil
+    local terminal_win = nil
     if buf_type ~= 'terminal' then
-        -- Get a list of all open buffers
-        local buffers = vim.api.nvim_list_bufs()
-        for _, buf in ipairs(buffers) do
-            -- Check if the buffer is a terminal
+        -- Get a list of all open windows
+        local windows = vim.api.nvim_list_wins()
+        for _, win in ipairs(windows) do
+            -- Check if the window's buffer is a terminal
+            local buf = vim.api.nvim_win_get_buf(win)
             if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
-                terminal_buf = buf
+                terminal_win = win
                 terminal_buf_found = true
                 break
             end
@@ -168,21 +169,17 @@ function M.send_interrupt()
             vim.api.nvim_exec(':ToggleTerm', false)
         end
     end
-    if terminal_buf then
-        -- Open a new floating window with the terminal buffer
-        local win = vim.api.nvim_open_win(terminal_buf, true, {
-            relative = 'editor',
-            width = 80,
-            height = 24,
-            col = 10,
-            row = 10
-        })
+    if terminal_win then
+        -- Save the current window
+        local current_win = vim.api.nvim_get_current_win()
+        -- Switch to the terminal window
+        vim.api.nvim_set_current_win(terminal_win)
         vim.defer_fn(function()
             -- Send Ctrl+C to the terminal buffer
             vim.api.nvim_exec('startinsert', false)
             vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
-            -- Close the floating window
-            vim.api.nvim_win_close(win, true)
+            -- Switch back to the original window
+            vim.api.nvim_set_current_win(current_win)
         end, 100)
     end
 end
