@@ -382,9 +382,9 @@ end
 
 function M.handle_buffer_exit()
     local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
-    print("buff type if (" .. buftype .. ")")
+    -- print("buff type if (" .. buftype .. ")")
     if buftype == 'nofile' then
-        print("tried to unbind")
+        -- print("tried to unbind")
         if M.coderun_json then
             M.unbind_commands(M.coderun_json)
         else
