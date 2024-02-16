@@ -265,31 +265,6 @@ function M.bind_commands(json_data)
                 cmd = cmd:gsub("$fileExtension", file_extension)
                 cmd = cmd:gsub("$filePath", file_path)
 
-
-
-                -- Check if the keybind already exists
-                -- local exists = keybind_exists(v.keybind)
-                -- if string.sub(v.command, 1, 1) == ":" then
-                --     vim.api.nvim_set_keymap('n', v.keybind,
-                --         v.command .. "<CR>",
-                --         { noremap = true, silent = true })
-                -- else
-                --     vim.api.nvim_set_keymap('n', v.keybind,
-                --         ":TermExec cmd='" .. cmd .. "'<CR>",
-                --         { noremap = true, silent = true })
-                -- end
-                -- local modes = { 'n', 'i', 'v', 't' }
-                -- for _, mode in ipairs(modes) do
-                --     if string.sub(v.command, 1, 1) == ":" then
-                --         vim.api.nvim_set_keymap(mode, v.keybind,
-                --             v.command .. "<CR>",
-                --             { noremap = true, silent = true })
-                --     else
-                --         vim.api.nvim_set_keymap(mode, v.keybind,
-                --             ":TermExec cmd='" .. cmd .. "'<CR>",
-                --             { noremap = true, silent = true })
-                --     end
-                -- end
                 local modes = { 'n', 'i', 'v', 't' }
                 for _, mode in ipairs(modes) do
                     if string.sub(v.command, 1, 1) == ":" then
@@ -454,7 +429,7 @@ end
 function M.handle_buffer_exit()
     local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
     -- print("buff type if (" .. buftype .. ")")
-    if buftype == 'nofile' then
+    if buftype == 'nofile' or buftype == "" then
         -- print("tried to unbind")
         if M.coderun_json then
             M.unbind_commands(M.coderun_json)
