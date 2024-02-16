@@ -239,8 +239,8 @@ function M.send_interrupt()
                 end
             end, 50)
         end, 100)
-        M.interupting = false
     end
+    M.interupting = false
 end
 
 function M.bind_commands(json_data)
