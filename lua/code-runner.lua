@@ -167,6 +167,15 @@ function M.send_interrupt()
         if not terminal_buf_found then
             -- Open a new terminal if no terminal buffer was found
             vim.api.nvim_exec(':ToggleTerm', false)
+            for _, win in ipairs(windows) do
+                -- Check if the window's buffer is a terminal
+                local buf = vim.api.nvim_win_get_buf(win)
+                if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
+                    terminal_win = win
+                    terminal_buf_found = true
+                    break
+                end
+            end
         end
     end
     if terminal_win then
