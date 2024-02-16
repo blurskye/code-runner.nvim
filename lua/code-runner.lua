@@ -34,15 +34,27 @@ end
 --         end
 --     end
 -- end
-function M.unbind_commands(json_data)
-    local modes = { 'n', 'i', 'v', 't' }
+-- function M.unbind_commands(json_data)
+--     local modes = { 'n', 'i', 'v', 't' }
 
+--     if (json_data) then
+--         for _, v in pairs(json_data) do
+--             if v.command and v.keybind then
+--                 for _, mode in ipairs(modes) do
+--                     -- Unbind the keymap in all modes
+--                     vim.api.nvim_set_keymap(mode, v.keybind, '', { noremap = true, silent = true })
+--                 end
+--             end
+--         end
+--     end
+-- end
+function M.unbind_commands(json_data)
     if (json_data) then
         for _, v in pairs(json_data) do
             if v.command and v.keybind then
+                local modes = { 'n', 'i', 'v', 't' }
                 for _, mode in ipairs(modes) do
-                    -- Unbind the keymap in all modes
-                    vim.api.nvim_set_keymap(mode, v.keybind, '', { noremap = true, silent = true })
+                    vim.api.nvim_buf_del_keymap(0, mode, v.keybind)
                 end
             end
         end
