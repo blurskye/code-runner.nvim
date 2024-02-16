@@ -151,14 +151,14 @@ function M.send_interrupt()
     -- Check if the current buffer is a terminal
     local buf_type = vim.api.nvim_buf_get_option(vim.api.nvim_get_current_buf(), 'buftype')
     local terminal_buf_found = false
+    local terminal_buf = nil
     if buf_type ~= 'terminal' then
         -- Get a list of all open buffers
         local buffers = vim.api.nvim_list_bufs()
         for _, buf in ipairs(buffers) do
             -- Check if the buffer is a terminal
             if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
-                -- Navigate to the terminal buffer
-                vim.api.nvim_command('buffer ' .. buf)
+                terminal_buf = buf
                 terminal_buf_found = true
                 break
             end
@@ -168,10 +168,23 @@ function M.send_interrupt()
             vim.api.nvim_exec(':ToggleTerm', false)
         end
     end
-    vim.defer_fn(function()
-        vim.api.nvim_exec('startinsert', false)
-        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
-    end, 100)
+    if terminal_buf then
+        -- Open a new floating window with the terminal buffer
+        local win = vim.api.nvim_open_win(terminal_buf, true, {
+            relative = 'editor',
+            width = 80,
+            height = 24,
+            col = 10,
+            row = 10
+        })
+        vim.defer_fn(function()
+            -- Send Ctrl+C to the terminal buffer
+            vim.api.nvim_exec('startinsert', false)
+            vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
+            -- Close the floating window
+            vim.api.nvim_win_close(win, true)
+        end, 100)
+    end
 end
 
 function M.bind_commands(json_data)
