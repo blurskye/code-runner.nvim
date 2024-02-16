@@ -34,32 +34,39 @@ end
 --         end
 --     end
 -- end
--- function M.unbind_commands(json_data)
---     local modes = { 'n', 'i', 'v', 't' }
-
---     if (json_data) then
---         for _, v in pairs(json_data) do
---             if v.command and v.keybind then
---                 for _, mode in ipairs(modes) do
---                     -- Unbind the keymap in all modes
---                     vim.api.nvim_set_keymap(mode, v.keybind, '', { noremap = true, silent = true })
---                 end
---             end
---         end
---     end
--- end
 function M.unbind_commands(json_data)
+    local modes = { 'n', 'i', 'v', 't' }
+
     if (json_data) then
         for _, v in pairs(json_data) do
             if v.command and v.keybind then
-                local modes = { 'n', 'i', 'v', 't' }
                 for _, mode in ipairs(modes) do
-                    vim.api.nvim_buf_del_keymap(0, mode, v.keybind)
+                    -- Unbind the keymap in all modes
+                    vim.api.nvim_set_keymap(mode, v.keybind, '', { noremap = true, silent = true })
                 end
             end
         end
     end
 end
+
+-- function M.unbind_commands(json_data)
+--     if (json_data) then
+--         for _, v in pairs(json_data) do
+--             if v.command and v.keybind then
+--                 local modes = { 'n', 'i', 'v', 't' }
+--                 for _, mode in ipairs(modes) do
+--                     local keymaps = vim.api.nvim_get_keymap(mode)
+--                     for _, keymap in ipairs(keymaps) do
+--                         if keymap.lhs == v.keybind then
+--                             vim.api.nvim_buf_del_keymap(0, mode, v.keybind)
+--                             break
+--                         end
+--                     end
+--                 end
+--             end
+--         end
+--     end
+-- end
 
 -- function M.bind_commands(json_data)
 --     if (json_data) then
@@ -272,11 +279,11 @@ function M.bind_commands(json_data)
                 local modes = { 'n', 'i', 'v', 't' }
                 for _, mode in ipairs(modes) do
                     if string.sub(v.command, 1, 1) == ":" then
-                        vim.api.nvim_buf_set_keymap(0, mode, v.keybind,
+                        vim.api.nvim_buf_set_keymap(mode, v.keybind,
                             "<Cmd>" .. string.sub(v.command, 2) .. "<CR>",
                             { noremap = true, silent = true })
                     else
-                        vim.api.nvim_buf_set_keymap(0, mode, v.keybind,
+                        vim.api.nvim_buf_set_keymap(mode, v.keybind,
                             "<Cmd>TermExec cmd='" .. cmd .. "'<CR>",
                             { noremap = true, silent = true })
                     end
