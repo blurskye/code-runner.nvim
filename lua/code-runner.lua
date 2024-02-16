@@ -24,12 +24,26 @@ end
 --     end
 -- end
 
+-- function M.unbind_commands(json_data)
+--     if (json_data) then
+--         for _, v in pairs(json_data) do
+--             if v.command and v.keybind then
+--                 -- Unbind the keymap in normal mode
+--                 vim.api.nvim_set_keymap('n', v.keybind, '', { noremap = true, silent = true })
+--             end
+--         end
+--     end
+-- end
 function M.unbind_commands(json_data)
+    local modes = { 'n', 'i', 'v', 't' }
+
     if (json_data) then
         for _, v in pairs(json_data) do
             if v.command and v.keybind then
-                -- Unbind the keymap in normal mode
-                vim.api.nvim_set_keymap('n', v.keybind, '', { noremap = true, silent = true })
+                for _, mode in ipairs(modes) do
+                    -- Unbind the keymap in all modes
+                    vim.api.nvim_set_keymap(mode, v.keybind, '', { noremap = true, silent = true })
+                end
             end
         end
     end
@@ -222,15 +236,26 @@ function M.bind_commands(json_data)
 
                 -- Check if the keybind already exists
                 -- local exists = keybind_exists(v.keybind)
-
-                if string.sub(v.command, 1, 1) == ":" then
-                    vim.api.nvim_set_keymap('n', v.keybind,
-                        v.command .. "<CR>",
-                        { noremap = true, silent = true })
-                else
-                    vim.api.nvim_set_keymap('n', v.keybind,
-                        ":TermExec cmd='" .. cmd .. "'<CR>",
-                        { noremap = true, silent = true })
+                -- if string.sub(v.command, 1, 1) == ":" then
+                --     vim.api.nvim_set_keymap('n', v.keybind,
+                --         v.command .. "<CR>",
+                --         { noremap = true, silent = true })
+                -- else
+                --     vim.api.nvim_set_keymap('n', v.keybind,
+                --         ":TermExec cmd='" .. cmd .. "'<CR>",
+                --         { noremap = true, silent = true })
+                -- end
+                local modes = { 'n', 'i', 'v', 't' }
+                for _, mode in ipairs(modes) do
+                    if string.sub(v.command, 1, 1) == ":" then
+                        vim.api.nvim_set_keymap(mode, v.keybind,
+                            v.command .. "<CR>",
+                            { noremap = true, silent = true })
+                    else
+                        vim.api.nvim_set_keymap(mode, v.keybind,
+                            ":TermExec cmd='" .. cmd .. "'<CR>",
+                            { noremap = true, silent = true })
+                    end
                 end
             end
         end
