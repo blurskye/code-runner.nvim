@@ -227,6 +227,7 @@ function M.send_interrupt()
             vim.defer_fn(function()
                 -- Switch back to the original window
                 vim.api.nvim_set_current_win(current_win)
+                print("current mode: " .. current_mode)
                 if current_mode:sub(1, 1) == 'i' then
                     vim.api.nvim_exec('startinsert', false)
                 end
