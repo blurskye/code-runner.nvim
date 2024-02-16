@@ -418,9 +418,15 @@ function M.setup(opts)
                 autocmd BufLeave * lua require('code-runner').handle_buffer_exit()
                 augroup END
                 ]], false)
+    -- M.opts.interrupt_keymap = M.opts.interrupt_keymap or '<F2>'
+    -- vim.api.nvim_set_keymap('n', M.opts.interrupt_keymap, "<Cmd>lua require('code-runner').send_interrupt()<CR>",
+    --     { noremap = true, silent = true })
     M.opts.interrupt_keymap = M.opts.interrupt_keymap or '<F2>'
-    vim.api.nvim_set_keymap('n', M.opts.interrupt_keymap, ":lua require('code-runner').send_interrupt()<CR>",
-        { noremap = true, silent = true })
+    local modes = { 'n', 'i', 'v', 't' }
+    for _, mode in ipairs(modes) do
+        vim.api.nvim_set_keymap(mode, M.opts.interrupt_keymap, "<Cmd>lua require('code-runner').send_interrupt()<CR>",
+            { noremap = true, silent = true })
+    end
 end
 
 function M.handle_buffer_enter()
