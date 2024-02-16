@@ -181,6 +181,10 @@ end
 -- end
 
 function M.send_interrupt()
+    if M.interupting then
+        return
+    end
+    M.interupting = true
     local current_win = vim.api.nvim_get_current_win()
     local current_mode = vim.api.nvim_get_mode().mode
     -- Check if the current buffer is a terminal
@@ -235,6 +239,7 @@ function M.send_interrupt()
                 end
             end, 50)
         end, 100)
+        M.interupting = false
     end
 end
 
