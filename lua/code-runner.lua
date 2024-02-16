@@ -229,7 +229,9 @@ function M.send_interrupt()
                 vim.api.nvim_set_current_win(current_win)
                 print("current mode: " .. current_mode)
                 if current_mode:sub(1, 1) == 'i' then
-                    vim.api.nvim_exec('startinsert', false)
+                    vim.defer_fn(function()
+                        vim.api.nvim_exec('startinsert', false)
+                    end, 50)
                 end
             end, 50)
         end, 100)
