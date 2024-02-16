@@ -245,15 +245,27 @@ function M.bind_commands(json_data)
                 --         ":TermExec cmd='" .. cmd .. "'<CR>",
                 --         { noremap = true, silent = true })
                 -- end
+                -- local modes = { 'n', 'i', 'v', 't' }
+                -- for _, mode in ipairs(modes) do
+                --     if string.sub(v.command, 1, 1) == ":" then
+                --         vim.api.nvim_set_keymap(mode, v.keybind,
+                --             v.command .. "<CR>",
+                --             { noremap = true, silent = true })
+                --     else
+                --         vim.api.nvim_set_keymap(mode, v.keybind,
+                --             ":TermExec cmd='" .. cmd .. "'<CR>",
+                --             { noremap = true, silent = true })
+                --     end
+                -- end
                 local modes = { 'n', 'i', 'v', 't' }
                 for _, mode in ipairs(modes) do
                     if string.sub(v.command, 1, 1) == ":" then
-                        vim.api.nvim_set_keymap(mode, v.keybind,
-                            v.command .. "<CR>",
+                        vim.api.nvim_buf_set_keymap(0, mode, v.keybind,
+                            "<Cmd>" .. string.sub(v.command, 2) .. "<CR>",
                             { noremap = true, silent = true })
                     else
-                        vim.api.nvim_set_keymap(mode, v.keybind,
-                            ":TermExec cmd='" .. cmd .. "'<CR>",
+                        vim.api.nvim_buf_set_keymap(0, mode, v.keybind,
+                            "<Cmd>TermExec cmd='" .. cmd .. "'<CR>",
                             { noremap = true, silent = true })
                     end
                 end
