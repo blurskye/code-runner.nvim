@@ -148,6 +148,7 @@ end
 -- end
 
 function M.send_interrupt()
+    local current_win = vim.api.nvim_get_current_win()
     -- Check if the current buffer is a terminal
     local buf_type = vim.api.nvim_buf_get_option(vim.api.nvim_get_current_buf(), 'buftype')
     local terminal_win = nil
@@ -167,6 +168,8 @@ function M.send_interrupt()
         if not terminal_win then
             -- Open a new terminal if no terminal buffer was found
             vim.api.nvim_exec(':ToggleTerm', false)
+
+
             local windows = vim.api.nvim_list_wins()
             for _, win in ipairs(windows) do
                 -- Check if the window's buffer is a terminal
@@ -180,7 +183,7 @@ function M.send_interrupt()
     end
     if terminal_win then
         -- Save the current window
-        local current_win = vim.api.nvim_get_current_win()
+        -- local current_win = vim.api.nvim_get_current_win()
         -- Switch to the terminal window
         vim.api.nvim_set_current_win(terminal_win)
         vim.defer_fn(function()
