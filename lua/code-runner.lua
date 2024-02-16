@@ -182,6 +182,7 @@ end
 
 function M.send_interrupt()
     local current_win = vim.api.nvim_get_current_win()
+    local current_mode = vim.api.nvim_get_mode().mode
     -- Check if the current buffer is a terminal
     local buf_type = vim.api.nvim_buf_get_option(vim.api.nvim_get_current_buf(), 'buftype')
     local terminal_win = nil
@@ -226,6 +227,9 @@ function M.send_interrupt()
             vim.defer_fn(function()
                 -- Switch back to the original window
                 vim.api.nvim_set_current_win(current_win)
+                if current_mode:sub(1, 1) == 'i' then
+                    vim.api.nvim_exec('startinsert', false)
+                end
             end, 50)
         end, 100)
     end
