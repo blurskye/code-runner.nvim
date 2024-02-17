@@ -95,11 +95,12 @@ but for people who need a bit more juice out of the plugin
 </div>
 </body>
 
-# 🌟 We Love Your Contributions! 🌟
-
+<h1 align="center"> 🌟 We Love Your Contributions! 🌟 </h1>
+<p align="center>
 Got an idea to make this plugin even better? We'd love to hear it! 📣
 
 - **Feature Enhancements**: If you have a suggestion, don't hesitate to open an issue. We're always looking for ways to improve! 💡
 - **Pull Requests**: Ready to roll up your sleeves and make a change yourself? Submit a pull request! We appreciate your initiative. 🛠️
 
 Thank you for using this plugin and being a part of our community. Your support means the world to us! 🌍💖
+</p>
