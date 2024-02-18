@@ -190,7 +190,7 @@ function M.run_command(command)
 
     -- split the command by '&&'
     for cmd in string.gmatch(command, '([^&&]+)') do
-        cmd = cmd:trim()                                        -- remove leading and trailing spaces
+        cmd = M.trim(cmd)                                       -- remove leading and trailing spaces
         for var in string.gmatch(cmd, "`%${(.-)}%`") do
             if not values[var] then                             -- if the value of the variable is not already stored
                 local value = vim.fn.input('Enter value for ' .. var .. ': ')
