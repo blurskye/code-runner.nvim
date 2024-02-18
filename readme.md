@@ -4,7 +4,7 @@
 
 <h4> "all that is necessary for evil to triumph is for good man to do nothing", do something, anything </h4>
 </head>
-<div align="center">
+
 
 <body>
 <h1> 🚀 Code Runner for Neovim 🚀 </h1>
