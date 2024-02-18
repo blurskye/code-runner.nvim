@@ -116,20 +116,10 @@ function M.bind_commands(json_data)
 
                 local modes = { 'n', 'i', 'v', 't' }
                 for _, mode in ipairs(modes) do
-                    if string.sub(v.command, 1, 1) == ":" then
-                        vim.api.nvim_set_keymap(mode, v.keybind,
-                            "<Cmd>" .. string.sub(v.command, 2) .. "<CR>",
-                            { noremap = true, silent = true })
-                    else
-                        vim.api.nvim_set_keymap(mode, v.keybind,
-                            "<Cmd>lua require('code-runner').run_command('" ..
-                            cmd .. "')<CR>",
-                            { noremap = true, silent = true })
-                        -- else
-                        --     vim.api.nvim_set_keymap(mode, v.keybind,
-                        --         "<Cmd>TermExec cmd='" .. cmd .. "'<CR>",
-                        --         { noremap = true, silent = true })
-                    end
+                    vim.api.nvim_set_keymap(mode, v.keybind,
+                        "<Cmd>lua require('code-runner').run_command('" ..
+                        cmd .. "')<CR>",
+                        { noremap = true, silent = true })
                 end
             end
         end
@@ -185,8 +175,10 @@ function M.trim(s)
 end
 
 function M.run_command(command)
+    if (M.running_command) then
+        return
+    end
     M.running_command = true
-    local variables = {}
     local values = {} -- table to store the values of the variables
 
     -- split the command by '&&'
@@ -203,7 +195,11 @@ function M.run_command(command)
             end
             cmd = cmd:gsub("`%${" .. var .. "}%`", values[var]) -- replace with the stored value
         end
-        vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
+        if string.sub(command, 1, 1) == ':' then
+            vim.api.nvim_command(command)
+        else
+            vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
+        end
     end
     M.running_command = false
 end
