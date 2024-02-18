@@ -298,15 +298,15 @@ end
 function M.complete_variables_in_commands(command)
     local variables = {}
     local cmd = command
+    local values = {} -- table to store the values of the variables
 
     for var in string.gmatch(cmd, "`%${(.-)}%`") do
-        table.insert(variables, var)
-    end
-
-    for _, var in ipairs(variables) do
-        local value = vim.fn.input('Enter value for ' .. var .. ': ')
-        print("value: " .. value)
-        cmd = cmd:gsub("`%${" .. var .. "}%`", value) -- -1 means replace all occurrences
+        if not values[var] then -- if the value of the variable is not already stored
+            local value = vim.fn.input('Enter value for ' .. var .. ': ')
+            print("value: " .. value)
+            values[var] = value                             -- store the value of the variable
+        end
+        cmd = cmd:gsub("`%${" .. var .. "}%`", values[var]) -- replace with the stored value
     end
     print("command: " .. cmd)
     vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
