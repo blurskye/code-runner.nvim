@@ -122,7 +122,7 @@ function M.bind_commands(json_data)
                             { noremap = true, silent = true })
                     elseif string.match(v.command, "`%${(.-)}%`") then
                         vim.api.nvim_set_keymap(mode, v.keybind,
-                            "<Cmd>lua require('code-runner').complete_variables_in_commands('" ..
+                            "<Cmd>lua require('code-runner').run_command('" ..
                             cmd .. "')<CR>",
                             { noremap = true, silent = true })
                     else
@@ -166,19 +166,40 @@ function M.load_json()
     return nil
 end
 
-function M.complete_variables_in_commands(command)
+-- function M.run_command(command)
+--     local variables = {}
+--     local cmd = command
+--     local values = {} -- table to store the values of the variables
+
+--     for var in string.gmatch(cmd, "`%${(.-)}%`") do
+--         if not values[var] then                             -- if the value of the variable is not already stored
+--             local value = vim.fn.input('Enter value for ' .. var .. ': ')
+--             values[var] = value                             -- store the value of the variable
+--         end
+--         cmd = cmd:gsub("`%${" .. var .. "}%`", values[var]) -- replace with the stored value
+--     end
+--     vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
+-- end
+function M.trim(s)
+    return (s:gsub("^%s*(.-)%s*$", "%1"))
+end
+
+function M.run_command(command)
     local variables = {}
-    local cmd = command
     local values = {} -- table to store the values of the variables
 
-    for var in string.gmatch(cmd, "`%${(.-)}%`") do
-        if not values[var] then                             -- if the value of the variable is not already stored
-            local value = vim.fn.input('Enter value for ' .. var .. ': ')
-            values[var] = value                             -- store the value of the variable
+    -- split the command by '&&'
+    for cmd in string.gmatch(command, '([^&&]+)') do
+        cmd = cmd:trim()                                        -- remove leading and trailing spaces
+        for var in string.gmatch(cmd, "`%${(.-)}%`") do
+            if not values[var] then                             -- if the value of the variable is not already stored
+                local value = vim.fn.input('Enter value for ' .. var .. ': ')
+                values[var] = value                             -- store the value of the variable
+            end
+            cmd = cmd:gsub("`%${" .. var .. "}%`", values[var]) -- replace with the stored value
         end
-        cmd = cmd:gsub("`%${" .. var .. "}%`", values[var]) -- replace with the stored value
+        vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
     end
-    vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
 end
 
 M.commands = {
