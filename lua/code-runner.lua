@@ -254,32 +254,46 @@ end
 -- end
 
 
+-- function M.complete_variables_in_commands(command)
+--     local variables = {}
+--     local telescope = require('telescope')
+
+--     for var in string.gmatch(command, "{(.-)}") do
+--         table.insert(variables, var)
+--     end
+
+--     local index = 1
+--     local function replace_variable()
+--         if index <= #variables then
+--             local var = variables[index]
+--             telescope.extensions.input.prompt({
+--                 prompt_title = 'Enter value for ' .. var,
+--                 done_callback = function(value)
+--                     command = string.gsub(command, "{" .. var .. "}", value)
+--                     index = index + 1
+--                     replace_variable()
+--                 end
+--             })
+--         else
+--             vim.api.nvim_command(command)
+--         end
+--     end
+
+--     replace_variable()
+-- end
 function M.complete_variables_in_commands(command)
     local variables = {}
-    local telescope = require('telescope')
 
     for var in string.gmatch(command, "{(.-)}") do
         table.insert(variables, var)
     end
 
-    local index = 1
-    local function replace_variable()
-        if index <= #variables then
-            local var = variables[index]
-            telescope.extensions.input.prompt({
-                prompt_title = 'Enter value for ' .. var,
-                done_callback = function(value)
-                    command = string.gsub(command, "{" .. var .. "}", value)
-                    index = index + 1
-                    replace_variable()
-                end
-            })
-        else
-            vim.api.nvim_command(command)
-        end
+    for _, var in ipairs(variables) do
+        local value = vim.fn.input('Enter value for ' .. var .. ': ')
+        command = string.gsub(command, "{" .. var .. "}", value)
     end
 
-    replace_variable()
+    vim.api.nvim_command(command)
 end
 
 M.commands = {
