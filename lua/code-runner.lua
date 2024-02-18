@@ -185,21 +185,27 @@ function M.trim(s)
 end
 
 function M.run_command(command)
+    M.running_command = true
     local variables = {}
     local values = {} -- table to store the values of the variables
 
     -- split the command by '&&'
     for cmd in string.gmatch(command, '([^&&]+)') do
-        cmd = M.trim(cmd)                                       -- remove leading and trailing spaces
+        cmd = M.trim(cmd)           -- remove leading and trailing spaces
         for var in string.gmatch(cmd, "`%${(.-)}%`") do
-            if not values[var] then                             -- if the value of the variable is not already stored
+            if not values[var] then -- if the value of the variable is not already stored
                 local value = vim.fn.input('Enter value for ' .. var .. ': ')
+                if value == '' then
+                    M.running_command = false
+                    return
+                end
                 values[var] = value                             -- store the value of the variable
             end
             cmd = cmd:gsub("`%${" .. var .. "}%`", values[var]) -- replace with the stored value
         end
         vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
     end
+    M.running_command = false
 end
 
 M.commands = {
