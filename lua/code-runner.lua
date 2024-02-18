@@ -124,7 +124,7 @@ function M.bind_commands(json_data)
                     elseif string.match(v.command, "`{.-}`") then
                         vim.api.nvim_set_keymap(mode, v.keybind,
                             "<Cmd>lua require('code-runner').complete_variables_in_commands(" ..
-                            vim.fn.json_encode(v) .. ")<CR>",
+                            v.command .. ")<CR>",
                             { noremap = true, silent = true })
                     else
                         vim.api.nvim_set_keymap(mode, v.keybind,
@@ -167,8 +167,7 @@ function M.load_json()
     return nil
 end
 
-function M.complete_variables_in_commands(v)
-    local command = v.command
+function M.complete_variables_in_commands(command)
     local variables = {}
 
     for var in string.gmatch(command, "{(.-)}") do
@@ -204,8 +203,10 @@ function M.complete_variables_in_commands(v)
                 end
             end,
         })
-        vim.api.nvim_command(command)
     end
+
+    -- Run the command
+    vim.api.nvim_command(command)
 end
 
 M.commands = {
