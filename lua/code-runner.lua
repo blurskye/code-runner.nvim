@@ -281,6 +281,20 @@ end
 
 --     replace_variable()
 -- end
+-- function M.complete_variables_in_commands(command)
+--     local variables = {}
+
+--     for var in string.gmatch(command, "{(.-)}") do
+--         table.insert(variables, var)
+--     end
+
+--     for _, var in ipairs(variables) do
+--         local value = vim.fn.input('Enter value for ' .. var .. ': ')
+--         print("value: " .. value)
+--         command = string.gsub(command, "{" .. var .. "}", value)
+--     end
+--     vim.api.nvim_command("TermExec cmd='" .. command .. "'")
+-- end
 function M.complete_variables_in_commands(command)
     local variables = {}
 
@@ -290,7 +304,8 @@ function M.complete_variables_in_commands(command)
 
     for _, var in ipairs(variables) do
         local value = vim.fn.input('Enter value for ' .. var .. ': ')
-        command = string.gsub(command, "{" .. var .. "}", value)
+        print("value: " .. value)
+        command = string.gsub(command, "{" .. var .. "}", value, -1) -- -1 means replace all occurrences
     end
     vim.api.nvim_command("TermExec cmd='" .. command .. "'")
 end
