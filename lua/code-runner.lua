@@ -121,7 +121,7 @@ function M.bind_commands(json_data)
                         vim.api.nvim_set_keymap(mode, v.keybind,
                             "<Cmd>" .. string.sub(v.command, 2) .. "<CR>",
                             { noremap = true, silent = true })
-                    elseif string.match(v.command, "`{.-}`") then
+                    elseif string.match(v.command, "`%${(.-)}%`") then
                         vim.api.nvim_set_keymap(mode, v.keybind,
                             "<Cmd>lua require('code-runner').complete_variables_in_commands('" ..
                             cmd .. "')<CR>",
@@ -298,15 +298,16 @@ end
 function M.complete_variables_in_commands(command)
     local variables = {}
 
-    for var in string.gmatch(command, "{(.-)}") do
+    for var in string.gmatch(command, "`%${(.-)}%`") do
         table.insert(variables, var)
     end
 
     for _, var in ipairs(variables) do
         local value = vim.fn.input('Enter value for ' .. var .. ': ')
         print("value: " .. value)
-        command = string.gsub(command, "{" .. var .. "}", value, -1) -- -1 means replace all occurrences
+        command = string.gsub(command, "`%${" .. var .. "}%`", value, -1) -- -1 means replace all occurrences
     end
+    print("command: " .. command)
     vim.api.nvim_command("TermExec cmd='" .. command .. "'")
 end
 
