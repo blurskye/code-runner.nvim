@@ -81,7 +81,6 @@ function M.send_interrupt()
             vim.defer_fn(function()
                 -- Switch back to the original window
                 vim.api.nvim_set_current_win(current_win)
-                print("current mode: " .. current_mode)
                 if current_mode:sub(1, 1) == 'i' then
                     vim.defer_fn(function()
                         vim.api.nvim_exec('startinsert', false)
@@ -167,148 +166,18 @@ function M.load_json()
     return nil
 end
 
--- function M.complete_variables_in_commands(command)
---     local variables = {}
-
---     for var in string.gmatch(command, "{(.-)}") do
---         -- Open a floating window and prompt the user for input
---         local buf = vim.api.nvim_create_buf(false, true)
---         vim.api.nvim_buf_set_lines(buf, 0, -1, false, { var .. " = " })
---         vim.api.nvim_buf_set_option(buf, 'modifiable', true)
---         local win_opts = {
---             relative = "editor",
---             width = 20,
---             height = 1,
---             col = math.floor((vim.o.columns - 20) / 2),
---             row = math.floor((vim.o.lines - 1) / 2),
---             style = "minimal",
---             border = "rounded",
---         }
---         local win = vim.api.nvim_open_win(buf, true, win_opts)
-
---         -- Wait for the user to input the value and press Enter
---         vim.api.nvim_command('startinsert')
---         vim.api.nvim_buf_attach(buf, false, {
---             on_lines = function()
---                 local value = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1]
---                 if string.sub(value, -1) == "\n" then
---                     -- The user has pressed Enter, close the floating window
---                     vim.api.nvim_win_close(win, true)
-
---                     -- Remove the trailing newline and " = " from the value
---                     value = string.sub(value, 1, -4)
-
---                     -- Replace the variable in the command with the value
---                     command = string.gsub(command, "{" .. var .. "}", value)
---                 end
---             end,
---         })
---     end
-
---     -- Run the command
---     vim.api.nvim_command(command)
--- end
--- function M.complete_variables_in_commands(command)
---     local variables = {}
-
---     for var in string.gmatch(command, "{(.-)}") do
---         table.insert(variables, var .. " = ")
---     end
-
---     local buf = vim.api.nvim_create_buf(false, true)
---     vim.api.nvim_buf_set_lines(buf, 0, -1, false, variables)
---     vim.api.nvim_buf_set_option(buf, 'modifiable', true)
---     local win_opts = {
---         relative = "editor",
---         width = 20,
---         height = #variables,
---         col = math.floor((vim.o.columns - 20) / 2),
---         row = math.floor((vim.o.lines - #variables) / 2),
---         style = "minimal",
---         border = "rounded",
---     }
---     local win = vim.api.nvim_open_win(buf, true, win_opts)
-
---     vim.api.nvim_command('startinsert')
---     local done = false
---     vim.api.nvim_buf_attach(buf, false, {
---         on_lines = function(_, _, _, firstline, lastline, _, _, _)
---             local value = vim.api.nvim_buf_get_lines(buf, firstline, lastline, false)[1]
---             if string.sub(value, -1) == "\n" then
---                 local var = variables[firstline + 1]
---                 value = string.sub(value, 1, -4)
---                 command = string.gsub(command, "{" .. var .. "}", value)
-
---                 if firstline + 1 == #variables then
---                     done = true
---                 else
---                     vim.api.nvim_win_set_cursor(win, { firstline + 2, 0 })
---                 end
---             end
---         end,
---     })
-
-
-
---     vim.api.nvim_command(command)
--- end
-
-
--- function M.complete_variables_in_commands(command)
---     local variables = {}
---     local telescope = require('telescope')
-
---     for var in string.gmatch(command, "{(.-)}") do
---         table.insert(variables, var)
---     end
-
---     local index = 1
---     local function replace_variable()
---         if index <= #variables then
---             local var = variables[index]
---             telescope.extensions.input.prompt({
---                 prompt_title = 'Enter value for ' .. var,
---                 done_callback = function(value)
---                     command = string.gsub(command, "{" .. var .. "}", value)
---                     index = index + 1
---                     replace_variable()
---                 end
---             })
---         else
---             vim.api.nvim_command(command)
---         end
---     end
-
---     replace_variable()
--- end
--- function M.complete_variables_in_commands(command)
---     local variables = {}
-
---     for var in string.gmatch(command, "{(.-)}") do
---         table.insert(variables, var)
---     end
-
---     for _, var in ipairs(variables) do
---         local value = vim.fn.input('Enter value for ' .. var .. ': ')
---         print("value: " .. value)
---         command = string.gsub(command, "{" .. var .. "}", value)
---     end
---     vim.api.nvim_command("TermExec cmd='" .. command .. "'")
--- end
 function M.complete_variables_in_commands(command)
     local variables = {}
     local cmd = command
     local values = {} -- table to store the values of the variables
 
     for var in string.gmatch(cmd, "`%${(.-)}%`") do
-        if not values[var] then -- if the value of the variable is not already stored
+        if not values[var] then                             -- if the value of the variable is not already stored
             local value = vim.fn.input('Enter value for ' .. var .. ': ')
-            print("value: " .. value)
             values[var] = value                             -- store the value of the variable
         end
         cmd = cmd:gsub("`%${" .. var .. "}%`", values[var]) -- replace with the stored value
     end
-    print("command: " .. cmd)
     vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
 end
 
@@ -415,7 +284,6 @@ function M.handle_buffer_enter()
     if buftype ~= 'terminal' and buftype ~= 'nofile' and buftype == '' then
         M.coderun_json = M.load_json()
         M.json_data = M.load_json()
-        -- print(M.table_to_string(M.json_data))
 
         if (M.coderun_json) then
             M.bind_commands(M.coderun_json)
@@ -428,9 +296,8 @@ end
 
 function M.handle_buffer_exit()
     local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
-    -- print("buff type if (" .. buftype .. ")")
+
     if buftype == 'nofile' or buftype == "" then
-        -- print("tried to unbind")
         if M.coderun_json then
             M.unbind_commands(M.coderun_json)
         else
