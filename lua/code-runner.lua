@@ -121,6 +121,11 @@ function M.bind_commands(json_data)
                         vim.api.nvim_set_keymap(mode, v.keybind,
                             "<Cmd>" .. string.sub(v.command, 2) .. "<CR>",
                             { noremap = true, silent = true })
+                    elseif string.match(v.command, "`{.-}`") then
+                        vim.api.nvim_set_keymap(mode, v.keybind,
+                            "<Cmd>lua require('code-runner').complete_variables_in_commands(" ..
+                            vim.fn.json_encode(v) .. ")<CR>",
+                            { noremap = true, silent = true })
                     else
                         vim.api.nvim_set_keymap(mode, v.keybind,
                             "<Cmd>TermExec cmd='" .. cmd .. "'<CR>",
@@ -160,6 +165,47 @@ function M.load_json()
     end
 
     return nil
+end
+
+function M.complete_variables_in_commands(v)
+    local command = v.command
+    local variables = {}
+
+    for var in string.gmatch(command, "{(.-)}") do
+        -- Open a floating window and prompt the user for input
+        local buf = vim.api.nvim_create_buf(false, true)
+        vim.api.nvim_buf_set_lines(buf, 0, -1, false, { var .. " = " })
+        vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+        local win_opts = {
+            relative = "editor",
+            width = 20,
+            height = 1,
+            col = math.floor((vim.o.columns - 20) / 2),
+            row = math.floor((vim.o.lines - 1) / 2),
+            style = "minimal",
+            border = "rounded",
+        }
+        local win = vim.api.nvim_open_win(buf, true, win_opts)
+
+        -- Wait for the user to input the value and press Enter
+        vim.api.nvim_command('startinsert')
+        vim.api.nvim_buf_attach(buf, false, {
+            on_lines = function()
+                local value = vim.api.nvim_buf_get_lines(buf, 0, 1, false)[1]
+                if string.sub(value, -1) == "\n" then
+                    -- The user has pressed Enter, close the floating window
+                    vim.api.nvim_win_close(win, true)
+
+                    -- Remove the trailing newline and " = " from the value
+                    value = string.sub(value, 1, -4)
+
+                    -- Replace the variable in the command with the value
+                    command = string.gsub(command, "{" .. var .. "}", value)
+                end
+            end,
+        })
+        vim.api.nvim_command(command)
+    end
 end
 
 M.commands = {
