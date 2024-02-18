@@ -292,8 +292,7 @@ function M.complete_variables_in_commands(command)
         local value = vim.fn.input('Enter value for ' .. var .. ': ')
         command = string.gsub(command, "{" .. var .. "}", value)
     end
-    command = "<cmd>TermExec cmd='" .. command .. "'<CR>"
-    vim.api.nvim_command(command)
+    vim.api.nvim_command("TermExec cmd='" .. command .. "'")
 end
 
 M.commands = {
