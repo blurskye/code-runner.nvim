@@ -297,18 +297,19 @@ end
 -- end
 function M.complete_variables_in_commands(command)
     local variables = {}
+    local cmd = command
 
-    for var in string.gmatch(command, "`%${(.-)}%`") do
+    for var in string.gmatch(cmd, "`%${(.-)}%`") do
         table.insert(variables, var)
     end
 
     for _, var in ipairs(variables) do
         local value = vim.fn.input('Enter value for ' .. var .. ': ')
         print("value: " .. value)
-        command = string.gsub(command, "`%${" .. var .. "}%`", value, -1) -- -1 means replace all occurrences
+        cmd = string.gsub(cmd, "`%${" .. var .. "}%`", value, -1) -- -1 means replace all occurrences
     end
-    print("command: " .. command)
-    vim.api.nvim_command("TermExec cmd='" .. command .. "'")
+    print("command: " .. cmd)
+    vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
 end
 
 M.commands = {
