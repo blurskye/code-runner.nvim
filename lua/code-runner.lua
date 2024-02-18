@@ -306,7 +306,7 @@ function M.complete_variables_in_commands(command)
     for _, var in ipairs(variables) do
         local value = vim.fn.input('Enter value for ' .. var .. ': ')
         print("value: " .. value)
-        cmd = string.gsub(cmd, "`%${" .. var .. "}%`", value, -1) -- -1 means replace all occurrences
+        cmd = cmd:gsub("`%${" .. var .. "}%`", value, -1) -- -1 means replace all occurrences
     end
     print("command: " .. cmd)
     vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
