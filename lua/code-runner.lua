@@ -208,49 +208,78 @@ end
 --     -- Run the command
 --     vim.api.nvim_command(command)
 -- end
+-- function M.complete_variables_in_commands(command)
+--     local variables = {}
+
+--     for var in string.gmatch(command, "{(.-)}") do
+--         table.insert(variables, var .. " = ")
+--     end
+
+--     local buf = vim.api.nvim_create_buf(false, true)
+--     vim.api.nvim_buf_set_lines(buf, 0, -1, false, variables)
+--     vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+--     local win_opts = {
+--         relative = "editor",
+--         width = 20,
+--         height = #variables,
+--         col = math.floor((vim.o.columns - 20) / 2),
+--         row = math.floor((vim.o.lines - #variables) / 2),
+--         style = "minimal",
+--         border = "rounded",
+--     }
+--     local win = vim.api.nvim_open_win(buf, true, win_opts)
+
+--     vim.api.nvim_command('startinsert')
+--     local done = false
+--     vim.api.nvim_buf_attach(buf, false, {
+--         on_lines = function(_, _, _, firstline, lastline, _, _, _)
+--             local value = vim.api.nvim_buf_get_lines(buf, firstline, lastline, false)[1]
+--             if string.sub(value, -1) == "\n" then
+--                 local var = variables[firstline + 1]
+--                 value = string.sub(value, 1, -4)
+--                 command = string.gsub(command, "{" .. var .. "}", value)
+
+--                 if firstline + 1 == #variables then
+--                     done = true
+--                 else
+--                     vim.api.nvim_win_set_cursor(win, { firstline + 2, 0 })
+--                 end
+--             end
+--         end,
+--     })
+
+
+
+--     vim.api.nvim_command(command)
+-- end
+
+
 function M.complete_variables_in_commands(command)
     local variables = {}
+    local telescope = require('telescope')
 
     for var in string.gmatch(command, "{(.-)}") do
-        table.insert(variables, var .. " = ")
+        table.insert(variables, var)
     end
 
-    local buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, variables)
-    vim.api.nvim_buf_set_option(buf, 'modifiable', true)
-    local win_opts = {
-        relative = "editor",
-        width = 20,
-        height = #variables,
-        col = math.floor((vim.o.columns - 20) / 2),
-        row = math.floor((vim.o.lines - #variables) / 2),
-        style = "minimal",
-        border = "rounded",
-    }
-    local win = vim.api.nvim_open_win(buf, true, win_opts)
-
-    vim.api.nvim_command('startinsert')
-    local done = false
-    vim.api.nvim_buf_attach(buf, false, {
-        on_lines = function(_, _, _, firstline, lastline, _, _, _)
-            local value = vim.api.nvim_buf_get_lines(buf, firstline, lastline, false)[1]
-            if string.sub(value, -1) == "\n" then
-                local var = variables[firstline + 1]
-                value = string.sub(value, 1, -4)
-                command = string.gsub(command, "{" .. var .. "}", value)
-
-                if firstline + 1 == #variables then
-                    done = true
-                else
-                    vim.api.nvim_win_set_cursor(win, { firstline + 2, 0 })
+    local index = 1
+    local function replace_variable()
+        if index <= #variables then
+            local var = variables[index]
+            telescope.extensions.input.prompt({
+                prompt_title = 'Enter value for ' .. var,
+                done_callback = function(value)
+                    command = string.gsub(command, "{" .. var .. "}", value)
+                    index = index + 1
+                    replace_variable()
                 end
-            end
-        end,
-    })
+            })
+        else
+            vim.api.nvim_command(command)
+        end
+    end
 
-
-
-    vim.api.nvim_command(command)
+    replace_variable()
 end
 
 M.commands = {
