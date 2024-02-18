@@ -120,15 +120,15 @@ function M.bind_commands(json_data)
                         vim.api.nvim_set_keymap(mode, v.keybind,
                             "<Cmd>" .. string.sub(v.command, 2) .. "<CR>",
                             { noremap = true, silent = true })
-                    elseif string.match(v.command, "`%${(.-)}%`") then
+                    else
                         vim.api.nvim_set_keymap(mode, v.keybind,
                             "<Cmd>lua require('code-runner').run_command('" ..
                             cmd .. "')<CR>",
                             { noremap = true, silent = true })
-                    else
-                        vim.api.nvim_set_keymap(mode, v.keybind,
-                            "<Cmd>TermExec cmd='" .. cmd .. "'<CR>",
-                            { noremap = true, silent = true })
+                        -- else
+                        --     vim.api.nvim_set_keymap(mode, v.keybind,
+                        --         "<Cmd>TermExec cmd='" .. cmd .. "'<CR>",
+                        --         { noremap = true, silent = true })
                     end
                 end
             end
