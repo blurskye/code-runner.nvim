@@ -196,7 +196,7 @@ function M.run_command(command)
             cmd = cmd:gsub("`%${" .. var .. "}%`", values[var]) -- replace with the stored value
         end
         if cmd:sub(1, 1) == ':' then
-            vim.api.nvim_command(command)
+            vim.api.nvim_command(cmd)
         else
             vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
         end
