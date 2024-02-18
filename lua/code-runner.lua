@@ -124,7 +124,7 @@ function M.bind_commands(json_data)
                     elseif string.match(v.command, "`{.-}`") then
                         vim.api.nvim_set_keymap(mode, v.keybind,
                             "<Cmd>lua require('code-runner').complete_variables_in_commands('" ..
-                            v.command .. "')<CR>",
+                            cmd .. "')<CR>",
                             { noremap = true, silent = true })
                     else
                         vim.api.nvim_set_keymap(mode, v.keybind,
