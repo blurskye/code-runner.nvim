@@ -131,6 +131,10 @@ end
 
 function M.preview_file(file_path)
     -- Create a new buffer for the preview window
+    if not file_path or not vim.fn.filereadable(file_path) then
+        print("Invalid file path: " .. tostring(file_path))
+        return
+    end
     local preview_buf = vim.api.nvim_create_buf(false, true)
 
     -- Load the file content into the buffer
