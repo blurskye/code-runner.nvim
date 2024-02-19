@@ -447,70 +447,28 @@ function M.preview_file(file_path)
     local filetype = vim.fn.fnamemodify(file_path, ":e")
     vim.api.nvim_buf_set_option(preview_buf, 'filetype', filetype)
 
-    -- Get the width and height of the window
-    local width = vim.api.nvim_get_option("columns")
-    local height = vim.api.nvim_get_option("lines")
-
-    -- Calculate the width and height of the preview window
-    local win_width = math.ceil(width * 0.8)
-    local win_height = math.ceil(height * 0.8) - 1 -- Subtract 1 for the message window
-
-    -- Calculate the position of the preview window
-    local row = math.ceil((height - win_height) / 2)
-    local col = math.ceil((width - win_width) / 2)
-
-    -- Set the options for the preview window
-    local opts = {
-        style = "minimal",
-        relative = "editor",
-        width = win_width,
-        height = win_height,
-        row = row,
-        col = col
-    }
-
     -- Create the preview window
-    local win_id = vim.api.nvim_open_win(preview_buf, true, opts)
+    local win_id = vim.api.nvim_open_win(preview_buf, true, { relative = 'editor', width = 80, height = 24, row = 1, col = 1 })
+
+    -- Split the preview window and create a new window for the message buffer
+    vim.api.nvim_command('split')
+    local message_win_id = vim.api.nvim_get_current_win()
 
     -- Create a new buffer for the message window
     local message_buf = vim.api.nvim_create_buf(false, true)
+
+    -- Set the current buffer of the message window to the message buffer
+    vim.api.nvim_win_set_buf(message_win_id, message_buf)
 
     -- Set the lines of the message buffer
     vim.api.nvim_buf_set_lines(message_buf, 0, -1, false,
         { "Press <C-y> to trust " .. file_path, "Press <C-n> to not trust " .. file_path })
 
-    -- Calculate the position of the message window
-    local message_row = row + win_height
-
-    -- Set the options for the message window
-    local message_opts = {
-        style = "minimal",
-        relative = "editor",
-        width = win_width,
-        height = 1, -- The height of the message window is 1
-        row = message_row,
-        col = col
-    }
-
-    -- Create the message window
-    local message_win_id = vim.api.nvim_open_win(message_buf, false, message_opts) -- The message window does not take focus
-    local message_win_id = vim.api.nvim_open_win(message_buf, false, message_opts) -- The message window does not take focus
-
-    -- Add an autocmd to close the message window when the preview window is closed
-    vim.api.nvim_command('autocmd WinLeave <buffer> silent! execute ' .. message_win_id .. 'bwipeout!')
-    vim.api.nvim_command('autocmd BufWipeout <buffer> silent! execute ' .. message_win_id .. 'bwipeout!')
-    -- Set the 'h', 'j', 'k', and 'l' keybindings for the preview buffer
-    vim.api.nvim_buf_set_keymap(preview_buf, 'n', 'h', '<C-w>h', { noremap = true, silent = true })
-    vim.api.nvim_buf_set_keymap(preview_buf, 'n', 'j', '<C-y>', { noremap = true, silent = true })
-    vim.api.nvim_buf_set_keymap(preview_buf, 'n', 'k', '<C-e>', { noremap = true, silent = true })
-    vim.api.nvim_buf_set_keymap(preview_buf, 'n', 'l', '<C-w>l', { noremap = true, silent = true })
-
-    -- Set the 'y' keybinding for the preview buffer
-    vim.api.nvim_buf_set_keymap(preview_buf, 'n', '<C-y>', ':lua print("User trusts the file.")<CR>',
+    -- Set the 'q', 'y', and 'n' keybindings for the preview buffer to close the window
+    vim.api.nvim_buf_set_keymap(preview_buf, 'n', 'q', ':q<CR>', { noremap = true, silent = true })
+    vim.api.nvim_buf_set_keymap(preview_buf, 'n', '<C-y>', ':lua print("User trusts the file."); q<CR>',
         { noremap = true, silent = true })
-
-    -- Set the 'n' keybinding for the preview buffer
-    vim.api.nvim_buf_set_keymap(preview_buf, 'n', '<C-n>', ':lua print("User does not trust the file.")<CR>',
+    vim.api.nvim_buf_set_keymap(preview_buf, 'n', '<C-n>', ':lua print("User does not trust the file."); q<CR>',
         { noremap = true, silent = true })
 end
 
