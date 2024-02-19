@@ -279,6 +279,89 @@ end
 --     vim.api.nvim_buf_set_keymap(input_buf, 'n', '<C-n>', ':lua print("User does not trust the file.")<CR>',
 --         { noremap = true, silent = true })
 -- end
+
+-- function M.preview_file(file_path)
+--     -- Check if the file_path is not nil and the file exists
+--     if not file_path or not vim.fn.filereadable(file_path) then
+--         print("Invalid file path: " .. tostring(file_path))
+--         return
+--     end
+
+--     -- Create a new buffer for the preview window
+--     local preview_buf = vim.api.nvim_create_buf(false, true)
+
+--     -- Load the file content into the buffer
+--     local file_content = vim.fn.readfile(file_path)
+--     vim.api.nvim_buf_set_lines(preview_buf, 0, -1, false, file_content)
+
+--     -- Set the filetype of the buffer for syntax highlighting
+--     local filetype = vim.fn.fnamemodify(file_path, ":e")
+--     vim.api.nvim_buf_set_option(preview_buf, 'filetype', filetype)
+
+--     -- Get the width and height of the window
+--     local width = vim.api.nvim_get_option("columns")
+--     local height = vim.api.nvim_get_option("lines")
+
+--     -- Calculate the width and height of the preview window
+--     local win_width = math.ceil(width * 0.8)
+--     local win_height = math.ceil(height * 0.8)
+
+--     -- Calculate the position of the preview window
+--     local row = math.ceil((height - win_height) / 2)
+--     local col = math.ceil((width - win_width) / 2)
+
+--     -- Set the options for the preview window
+--     local opts = {
+--         style = "minimal",
+--         relative = "editor",
+--         width = win_width,
+--         height = win_height,
+--         row = row,
+--         col = col
+--     }
+
+--     -- Create the preview window
+--     local win_id = vim.api.nvim_open_win(preview_buf, true, opts)
+
+--     -- Set the 'h', 'j', 'k', and 'l' keybindings for the preview buffer
+--     vim.api.nvim_buf_set_keymap(preview_buf, 'n', 'h', '<C-w>h', { noremap = true, silent = true })
+--     vim.api.nvim_buf_set_keymap(preview_buf, 'n', 'j', '<C-y>', { noremap = true, silent = true })
+--     vim.api.nvim_buf_set_keymap(preview_buf, 'n', 'k', '<C-e>', { noremap = true, silent = true })
+--     vim.api.nvim_buf_set_keymap(preview_buf, 'n', 'l', '<C-w>l', { noremap = true, silent = true })
+
+--     -- Create a new buffer for the input window
+--     local input_buf = vim.api.nvim_create_buf(false, true)
+
+--     -- Add the trust question to the buffer
+--     vim.api.nvim_buf_set_lines(input_buf, 0, -1, false,
+--         { "Press <C-y> to trust " .. file_path, "Press <C-n> to not trust " .. file_path })
+
+--     -- Calculate the position of the input window
+--     local input_row = row + win_height
+--     local input_col = col
+
+--     -- Set the options for the input window
+--     local input_opts = {
+--         style = "minimal",
+--         relative = "editor",
+--         width = win_width,
+--         height = 1,
+--         row = input_row,
+--         col = input_col
+--     }
+
+--     -- Create the input window
+--     vim.api.nvim_open_win(input_buf, false, input_opts)
+
+--     -- Set the 'y' keybinding for the input buffer
+--     vim.api.nvim_buf_set_keymap(preview_buf, 'n', '<C-y>', ':lua print("User trusts the file.")<CR>',
+--         { noremap = true, silent = true })
+
+--     -- Set the 'n' keybinding for the input buffer
+--     vim.api.nvim_buf_set_keymap(preview_buf, 'n', '<C-n>', ':lua print("User does not trust the file.")<CR>',
+--         { noremap = true, silent = true })
+-- end
+
 function M.preview_file(file_path)
     -- Check if the file_path is not nil and the file exists
     if not file_path or not vim.fn.filereadable(file_path) then
@@ -291,6 +374,13 @@ function M.preview_file(file_path)
 
     -- Load the file content into the buffer
     local file_content = vim.fn.readfile(file_path)
+
+    -- Append the trust question to the file content
+    table.insert(file_content, "")
+    table.insert(file_content, "Press <C-y> to trust " .. file_path)
+    table.insert(file_content, "Press <C-n> to not trust " .. file_path)
+
+    -- Set the lines of the preview buffer
     vim.api.nvim_buf_set_lines(preview_buf, 0, -1, false, file_content)
 
     -- Set the filetype of the buffer for syntax highlighting
@@ -328,35 +418,11 @@ function M.preview_file(file_path)
     vim.api.nvim_buf_set_keymap(preview_buf, 'n', 'k', '<C-e>', { noremap = true, silent = true })
     vim.api.nvim_buf_set_keymap(preview_buf, 'n', 'l', '<C-w>l', { noremap = true, silent = true })
 
-    -- Create a new buffer for the input window
-    local input_buf = vim.api.nvim_create_buf(false, true)
-
-    -- Add the trust question to the buffer
-    vim.api.nvim_buf_set_lines(input_buf, 0, -1, false,
-        { "Press <C-y> to trust " .. file_path, "Press <C-n> to not trust " .. file_path })
-
-    -- Calculate the position of the input window
-    local input_row = row + win_height
-    local input_col = col
-
-    -- Set the options for the input window
-    local input_opts = {
-        style = "minimal",
-        relative = "editor",
-        width = win_width,
-        height = 1,
-        row = input_row,
-        col = input_col
-    }
-
-    -- Create the input window
-    vim.api.nvim_open_win(input_buf, false, input_opts)
-
-    -- Set the 'y' keybinding for the input buffer
+    -- Set the 'y' keybinding for the preview buffer
     vim.api.nvim_buf_set_keymap(preview_buf, 'n', '<C-y>', ':lua print("User trusts the file.")<CR>',
         { noremap = true, silent = true })
 
-    -- Set the 'n' keybinding for the input buffer
+    -- Set the 'n' keybinding for the preview buffer
     vim.api.nvim_buf_set_keymap(preview_buf, 'n', '<C-n>', ':lua print("User does not trust the file.")<CR>',
         { noremap = true, silent = true })
 end
