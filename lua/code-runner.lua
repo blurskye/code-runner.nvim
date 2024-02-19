@@ -188,6 +188,15 @@ function M.preview_file(file_path)
 
     -- Create the input window
     vim.api.nvim_open_win(input_buf, true, input_opts)
+    -- vim.api.nvim_open_win(input_buf, true, input_opts)
+
+    -- Set the 'y' keybinding for the input buffer
+    vim.api.nvim_buf_set_keymap(input_buf, 'n', 'y', ':lua print("User trusts the file.")<CR>',
+        { noremap = true, silent = true })
+
+    -- Set the 'n' keybinding for the input buffer
+    vim.api.nvim_buf_set_keymap(input_buf, 'n', 'n', ':lua print("User does not trust the file.")<CR>',
+        { noremap = true, silent = true })
 end
 
 function M.load_json()
