@@ -116,10 +116,7 @@ function M.bind_commands(json_data)
                 cmd = cmd:gsub("$fileName", file_name)
                 cmd = cmd:gsub("$fileExtension", file_extension)
                 cmd = cmd:gsub("$filePath", file_path)
-                if (keybind_exists(v.keybind)) then
-                    print("Keybind " .. v.keybind .. " already exists. Skipping...")
-                    goto continue
-                end
+
                 local modes = { 'n', 'i', 'v', 't' }
                 for _, mode in ipairs(modes) do
                     vim.api.nvim_set_keymap(mode, v.keybind,
@@ -128,7 +125,6 @@ function M.bind_commands(json_data)
                         { noremap = true, silent = true })
                 end
             end
-            ::continue::
         end
     end
 end
