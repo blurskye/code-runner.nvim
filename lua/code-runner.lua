@@ -129,6 +129,63 @@ function M.bind_commands(json_data)
     end
 end
 
+function M.preview_file(file_path)
+    -- Create a new buffer for the preview window
+    local preview_buf = vim.api.nvim_create_buf(false, true)
+
+    -- Load the file content into the buffer
+    local file_content = vim.fn.readfile(file_path)
+    vim.api.nvim_buf_set_lines(preview_buf, 0, -1, false, file_content)
+
+    -- Get the width and height of the window
+    local width = vim.api.nvim_get_option("columns")
+    local height = vim.api.nvim_get_option("lines")
+
+    -- Calculate the width and height of the preview window
+    local win_width = math.ceil(width * 0.8)
+    local win_height = math.ceil(height * 0.8)
+
+    -- Calculate the position of the preview window
+    local row = math.ceil((height - win_height) / 2)
+    local col = math.ceil((width - win_width) / 2)
+
+    -- Set the options for the preview window
+    local opts = {
+        style = "minimal",
+        relative = "editor",
+        width = win_width,
+        height = win_height,
+        row = row,
+        col = col
+    }
+
+    -- Create the preview window
+    local win_id = vim.api.nvim_open_win(preview_buf, true, opts)
+
+    -- Create a new buffer for the input window
+    local input_buf = vim.api.nvim_create_buf(false, true)
+
+    -- Add the trust question to the buffer
+    vim.api.nvim_buf_set_lines(input_buf, 0, -1, false, { "Do you trust " .. file_path .. "? (y/n)" })
+
+    -- Calculate the position of the input window
+    local input_row = row + win_height
+    local input_col = col
+
+    -- Set the options for the input window
+    local input_opts = {
+        style = "minimal",
+        relative = "editor",
+        width = win_width,
+        height = 1,
+        row = input_row,
+        col = input_col
+    }
+
+    -- Create the input window
+    vim.api.nvim_open_win(input_buf, true, input_opts)
+end
+
 function M.load_json()
     local bufnr = vim.api.nvim_win_get_buf(0)
     local file_path = vim.api.nvim_buf_get_name(bufnr)
@@ -303,6 +360,7 @@ function M.setup(opts)
         vim.api.nvim_set_keymap(mode, M.opts.interrupt_keymap, "<Cmd>lua require('code-runner').send_interrupt()<CR>",
             { noremap = true, silent = true })
     end
+    M.preview_file(M.coderun_json_dir)
 end
 
 function M.handle_buffer_enter()
