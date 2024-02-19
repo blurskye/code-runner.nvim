@@ -24,10 +24,13 @@ function M.adjust_command_path()
 end
 
 local function keybind_exists(keybind)
-    local keymaps = vim.api.nvim_get_keymap('n') -- 'n' for normal mode
-    for _, map in pairs(keymaps) do
-        if map.lhs == keybind then
-            return true
+    local modes = { 'n', 'i', 'v', 't' }
+    for _, mode in ipairs(modes) do
+        local keymaps = vim.api.nvim_get_keymap(mode)
+        for _, map in pairs(keymaps) do
+            if map.lhs == keybind then
+                return true
+            end
         end
     end
     return false
@@ -113,7 +116,10 @@ function M.bind_commands(json_data)
                 cmd = cmd:gsub("$fileName", file_name)
                 cmd = cmd:gsub("$fileExtension", file_extension)
                 cmd = cmd:gsub("$filePath", file_path)
-
+                if (keybind_exists(v.keybind)) then
+                    print("Keybind " .. v.keybind .. " already exists. Skipping...")
+                    goto continue
+                end
                 local modes = { 'n', 'i', 'v', 't' }
                 for _, mode in ipairs(modes) do
                     vim.api.nvim_set_keymap(mode, v.keybind,
@@ -122,6 +128,7 @@ function M.bind_commands(json_data)
                         { noremap = true, silent = true })
                 end
             end
+            ::continue::
         end
     end
 end
