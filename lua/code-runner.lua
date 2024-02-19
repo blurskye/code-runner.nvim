@@ -494,7 +494,10 @@ function M.preview_file(file_path)
 
     -- Create the message window
     local message_win_id = vim.api.nvim_open_win(message_buf, false, message_opts) -- The message window does not take focus
+    local message_win_id = vim.api.nvim_open_win(message_buf, false, message_opts) -- The message window does not take focus
 
+    -- Add an autocmd to close the message window when the preview window is closed
+    vim.api.nvim_command('autocmd WinLeave <buffer> silent! execute ' .. message_win_id .. 'bwipeout!')
     -- Set the 'h', 'j', 'k', and 'l' keybindings for the preview buffer
     vim.api.nvim_buf_set_keymap(preview_buf, 'n', 'h', '<C-w>h', { noremap = true, silent = true })
     vim.api.nvim_buf_set_keymap(preview_buf, 'n', 'j', '<C-y>', { noremap = true, silent = true })
