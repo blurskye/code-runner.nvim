@@ -353,11 +353,11 @@ function M.preview_file(file_path)
     vim.api.nvim_open_win(input_buf, false, input_opts)
 
     -- Set the 'y' keybinding for the input buffer
-    vim.api.nvim_buf_set_keymap(input_buf, 'n', '<C-y>', ':lua print("User trusts the file.")<CR>',
+    vim.api.nvim_buf_set_keymap(preview_buf, 'n', '<C-y>', ':lua print("User trusts the file.")<CR>',
         { noremap = true, silent = true })
 
     -- Set the 'n' keybinding for the input buffer
-    vim.api.nvim_buf_set_keymap(input_buf, 'n', '<C-n>', ':lua print("User does not trust the file.")<CR>',
+    vim.api.nvim_buf_set_keymap(preview_buf, 'n', '<C-n>', ':lua print("User does not trust the file.")<CR>',
         { noremap = true, silent = true })
 end
 
