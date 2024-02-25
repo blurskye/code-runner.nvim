@@ -108,7 +108,7 @@ function M.bind_commands(json_data)
                 local file_extension = '"' .. vim.fn.fnamemodify(file_buffer, ":e") .. '"'
 
                 local cmd = v.command
-                cmd = cmd:gsub("$dir", file_path)
+                cmd = cmd:gsub("$dir", file_dir)
                 cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
                 cmd = cmd:gsub("$fileName", file_name)
                 cmd = cmd:gsub("$fileExtension", file_extension)
