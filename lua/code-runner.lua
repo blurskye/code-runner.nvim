@@ -681,6 +681,7 @@ function M.handle_buffer_enter()
     print("entered bufftype " .. buftype)
     --    if buftype ~= 'terminal' and (buftype == 'nofile' or buftype == '') then
     if buftype ~= 'terminal' and (buftype == 'nofile' or buftype == '') then
+        print("entered the ifelse")
         M.coderun_json = M.load_json()
         M.json_data = M.load_json()
 
