@@ -679,6 +679,7 @@ function M.handle_buffer_enter()
 
     local buftype = vim.api.nvim_buf_get_option(buf_id, 'buftype')
     print("entered bufftype " .. buftype)
+    --    if buftype ~= 'terminal' and (buftype == 'nofile' or buftype == '') then
     if buftype ~= 'terminal' and (buftype == 'nofile' or buftype == '') then
         M.coderun_json = M.load_json()
         M.json_data = M.load_json()
