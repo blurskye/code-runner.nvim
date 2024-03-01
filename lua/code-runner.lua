@@ -61,7 +61,7 @@ function M.send_interrupt()
         end
         if not terminal_win then
             -- Open a new terminal if no terminal buffer was found
-            vim.api.nvim_exec(':ToggleTerm', false)
+            vim.api.nvim_exec(M.toggle_term_command, false)
 
 
             local windows = vim.api.nvim_list_wins()
@@ -201,7 +201,11 @@ function M.run_command(command)
         if cmd:sub(1, 1) == ':' then
             vim.api.nvim_command(cmd)
         else
-            vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
+            if (M.toggle_term_command == "ToggleSkyTerm") then
+                vim.api.nvim_command("SendToSkyTerm " .. cmd)
+            else
+                vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
+            end
         end
     end
     M.running_command = false
@@ -281,7 +285,8 @@ function M.setup(opts)
 
     if M.opts.run_tmux ~= false then
         vim.cmd("TermExec cmd='tmux new-session -A -s nvim'")
-        vim.cmd("ToggleTerm")
+        -- vim.cmd("ToggleTerm")
+        vim.cmd(M.toggle_term_command)
     end
     M.coderun_json = M.load_json()
     if (M.coderun_json) then
@@ -303,6 +308,16 @@ function M.setup(opts)
         vim.api.nvim_set_keymap(mode, M.opts.interrupt_keymap, "<Cmd>lua require('code-runner').send_interrupt()<CR>",
             { noremap = true, silent = true })
     end
+    local sky_term_module = pcall(require, 'sky-term')
+
+    if sky_term_module then
+        -- If the sky-term module is available, use the :ToggleSkyTerm command
+        M.toggle_term_command = 'ToggleSkyTerm'
+    else
+        -- If the sky-term module is not available, use the :ToggleTerm command
+        M.toggle_term_command = 'ToggleTerm'
+    end
+    vim.notify("toggle_term_command: " .. M.toggle_term_command)
 end
 
 function M.handle_buffer_enter()
