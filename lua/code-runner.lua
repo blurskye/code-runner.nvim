@@ -479,7 +479,7 @@ function M.preview_file(file_path)
 end
 
 function M.load_json()
-    local buf_id = vim.api.nvim_win_get_buf(vim.api.nvim_get_current_win())
+    local buf_id = vim.api.nvim_win_get_buf(vim.api.nvim_get_current_buf())
     local bufnr = vim.api.nvim_win_get_buf(buf_id)
     local file_path = vim.api.nvim_buf_get_name(bufnr)
     local file_dir = vim.fn.fnamemodify(file_path, ":h")
