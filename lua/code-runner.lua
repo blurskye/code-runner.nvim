@@ -647,25 +647,19 @@ function M.setup(opts)
         vim.api.nvim_set_keymap(mode, M.opts.interrupt_keymap, "<Cmd>lua require('code-runner').send_interrupt()<CR>",
             { noremap = true, silent = true })
     end
-    vim.cmd([[
-  autocmd VimEnter * lua << EOF
     local toggle_term_command
 
     -- Try to require the sky-term module
     local sky_term_module = pcall(require, 'sky-term')
 
     if sky_term_module then
-      -- If the sky-term module is available, use the :ToggleSkyTerm command
-      toggle_term_command = 'ToggleSkyTerm'
+        -- If the sky-term module is available, use the :ToggleSkyTerm command
+        toggle_term_command = 'ToggleSkyTerm'
     else
-      -- If the sky-term module is not available, use the :ToggleTerm command
-      toggle_term_command = 'ToggleTerm'
+        -- If the sky-term module is not available, use the :ToggleTerm command
+        toggle_term_command = 'ToggleTerm'
     end
 
-    -- Now you can use the toggle_term_command variable to toggle the terminal
-    vim.api.nvim_set_var('toggle_term_command', toggle_term_command)
-  EOF
-]])
     M.preview_file(M.coderun_json_dir)
 end
 
