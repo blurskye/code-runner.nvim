@@ -661,7 +661,7 @@ function M.setup(opts)
     end
     print("toggle_term_command: " .. toggle_term_command)
 
-    M.preview_file(M.coderun_json_dir)
+    -- M.preview_file(M.coderun_json_dir)
 end
 
 function M.handle_buffer_enter()
