@@ -550,7 +550,11 @@ function M.run_command(command)
         if cmd:sub(1, 1) == ':' then
             vim.api.nvim_command(cmd)
         else
-            vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
+            if (M.toggle_term_command == "ToggleSkyTerm") then
+                vim.api.nvim_command("SendToSkyTerm " .. cmd)
+            else
+                vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
+            end
         end
     end
     M.running_command = false
