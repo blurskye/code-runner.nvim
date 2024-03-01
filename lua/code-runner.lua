@@ -150,6 +150,8 @@ function M.load_json()
             local data = vim.fn.json_decode(content)
             M.coderun_json_dir = file_dir
             return data
+        else
+            M.coderun_json_dir = nil
         end
 
         local parent_dir = vim.fn.fnamemodify(file_dir, ":h")
@@ -350,7 +352,7 @@ function M.handle_buffer_exit()
             M.unbind_commands(M.coderun_json)
         else
             local file_extension = vim.fn.expand("%:e")
-            M.bind_commands(M.generate_commands_table(file_extension))
+            M.unbind_commands(M.generate_commands_table(file_extension))
         end
     end
 end
