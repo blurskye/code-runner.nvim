@@ -340,8 +340,9 @@ function M.handle_buffer_enter()
 end
 
 function M.handle_buffer_exit()
-    local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
-
+    local win_id = vim.api.nvim_get_current_win()
+    local buf_id = vim.api.nvim_win_get_buf(win_id)
+    local buftype = vim.api.nvim_buf_get_option(buf_id, 'buftype')
     if buftype == 'nofile' or buftype == "" then
         if M.coderun_json then
             M.unbind_commands(M.coderun_json)
