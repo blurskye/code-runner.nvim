@@ -479,12 +479,21 @@ function M.preview_file(file_path)
 end
 
 function M.load_json()
-    local buf_id = vim.api.nvim_win_get_buf(vim.api.nvim_get_current_buf())
+    -- local buf_id = vim.api.nvim_win_get_buf(vim.api.nvim_get_current_buf())
+    -- local bufnr = vim.api.nvim_win_get_buf(buf_id)
+    -- local file_path = vim.api.nvim_buf_get_name(bufnr)
+    -- local file_dir = vim.fn.fnamemodify(file_path, ":h")
+    -- local root_dir = "/"
+    local win_id = vim.api.nvim_get_current_win()
+    if win_id == nil then
+        return nil
+    end
+
+    local buf_id = vim.api.nvim_win_get_buf(win_id)
     local bufnr = vim.api.nvim_win_get_buf(buf_id)
     local file_path = vim.api.nvim_buf_get_name(bufnr)
     local file_dir = vim.fn.fnamemodify(file_path, ":h")
     local root_dir = "/"
-
     while file_dir ~= root_dir do
         local json_path = file_dir .. "/coderun.json"
         local file = io.open(json_path, "r")
