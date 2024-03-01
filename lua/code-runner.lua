@@ -659,7 +659,7 @@ function M.setup(opts)
         -- If the sky-term module is not available, use the :ToggleTerm command
         toggle_term_command = 'ToggleTerm'
     end
-    print("toggle_term_command: " .. toggle_term_command)
+    vim.notify("toggle_term_command: " .. toggle_term_command)
 
     -- M.preview_file(M.coderun_json_dir)
 end
