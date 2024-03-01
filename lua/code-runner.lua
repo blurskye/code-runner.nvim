@@ -83,7 +83,11 @@ function M.send_interrupt()
             vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
             vim.defer_fn(function()
                 -- Switch back to the original window
-                vim.api.nvim_set_current_win(current_win)
+                if (M.toggle_term_command == "ToggleSkyTerm") then
+                    vim.api.nvim_command("ToggleSkyTerm")
+                else
+                    vim.api.nvim_set_current_win(current_win)
+                end
                 if current_mode:sub(1, 1) == 'i' then
                     vim.defer_fn(function()
                         vim.api.nvim_exec('startinsert', false)
