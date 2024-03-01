@@ -448,7 +448,8 @@ function M.preview_file(file_path)
     vim.api.nvim_buf_set_option(preview_buf, 'filetype', filetype)
 
     -- Create the preview window
-    local win_id = vim.api.nvim_open_win(preview_buf, true, { relative = 'editor', width = 80, height = 24, row = 1, col = 1 })
+    local win_id = vim.api.nvim_open_win(preview_buf, true,
+        { relative = 'editor', width = 80, height = 24, row = 1, col = 1 })
 
     -- Split the preview window and create a new window for the message buffer
     vim.api.nvim_command('split')
@@ -646,6 +647,25 @@ function M.setup(opts)
         vim.api.nvim_set_keymap(mode, M.opts.interrupt_keymap, "<Cmd>lua require('code-runner').send_interrupt()<CR>",
             { noremap = true, silent = true })
     end
+    vim.cmd([[
+  autocmd VimEnter * lua << EOF
+    local toggle_term_command
+
+    -- Try to require the sky-term module
+    local sky_term_module = pcall(require, 'sky-term')
+
+    if sky_term_module then
+      -- If the sky-term module is available, use the :ToggleSkyTerm command
+      toggle_term_command = 'ToggleSkyTerm'
+    else
+      -- If the sky-term module is not available, use the :ToggleTerm command
+      toggle_term_command = 'ToggleTerm'
+    end
+
+    -- Now you can use the toggle_term_command variable to toggle the terminal
+    vim.api.nvim_set_var('toggle_term_command', toggle_term_command)
+  EOF
+]])
     M.preview_file(M.coderun_json_dir)
 end
 
