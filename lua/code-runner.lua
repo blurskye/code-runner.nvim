@@ -675,7 +675,9 @@ function M.setup(opts)
 end
 
 function M.handle_buffer_enter()
-    local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
+    local buf_id = vim.api.nvim_win_get_buf(vim.api.nvim_get_current_win())
+
+    local buftype = vim.api.nvim_buf_get_option(buf_id, 'buftype')
     print(buftype)
     if buftype ~= 'terminal' and buftype ~= 'nofile' and buftype == '' then
         M.coderun_json = M.load_json()
@@ -691,7 +693,9 @@ function M.handle_buffer_enter()
 end
 
 function M.handle_buffer_exit()
-    local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
+    local buf_id = vim.api.nvim_win_get_buf(vim.api.nvim_get_current_win())
+
+    local buftype = vim.api.nvim_buf_get_option(buf_id, 'buftype')
     print("left bufftype " .. buftype)
     if (buftype == 'nofile' or buftype == "") and buftype ~= "terminal" then
         if M.coderun_json then
