@@ -676,6 +676,7 @@ end
 
 function M.handle_buffer_enter()
     local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
+    print(buftype)
     if buftype ~= 'terminal' and buftype ~= 'nofile' and buftype == '' then
         M.coderun_json = M.load_json()
         M.json_data = M.load_json()
@@ -692,7 +693,7 @@ end
 function M.handle_buffer_exit()
     local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
 
-    if buftype == 'nofile' or buftype == "" then
+    if (buftype == 'nofile' or buftype == "") and buftype ~= "terminal" then
         if M.coderun_json then
             M.unbind_commands(M.coderun_json)
         else
