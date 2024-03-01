@@ -488,7 +488,7 @@ function M.load_json()
             file:close()
 
             local data = vim.fn.json_decode(content)
-            M.coderun_json_dir = file_dir
+            M.coderun_json_dir = json_path
             return data
         end
 
@@ -660,6 +660,7 @@ function M.setup(opts)
         toggle_term_command = 'ToggleTerm'
     end
     print("toggle_term_command: " .. toggle_term_command)
+
     M.preview_file(M.coderun_json_dir)
 end
 
