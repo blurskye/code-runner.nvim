@@ -343,7 +343,6 @@ local function keybind_exists(keybind)
     end
     return false
 end
-
 function M.send_interrupt()
     if M.interrupting then
         return
@@ -351,50 +350,74 @@ function M.send_interrupt()
     M.interrupting = true
     local current_win = vim.api.nvim_get_current_win()
     local current_mode = vim.api.nvim_get_mode().mode
-    local buf_type = vim.api.nvim_buf_get_option(vim.api.nvim_get_current_buf(), 'buftype')
-    local terminal_win = nil
-
-    if buf_type == 'terminal' then
-        terminal_win = vim.api.nvim_get_current_win()
-    else
-        for _, win in ipairs(vim.api.nvim_list_wins()) do
-            local buf = vim.api.nvim_win_get_buf(win)
-            if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
-                terminal_win = win
-                break
-            end
-        end
-        if not terminal_win then
-            vim.api.nvim_exec('ToggleSkyTerm', false)
-            for _, win in ipairs(vim.api.nvim_list_wins()) do
-                local buf = vim.api.nvim_win_get_buf(win)
-                if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
-                    terminal_win = win
-                    break
-                end
-            end
-        end
-    end
-
-    if terminal_win then
-        vim.api.nvim_set_current_win(terminal_win)
+    
+    require('sky-term').toggle_term_wrapper()
+    vim.defer_fn(function()
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
         vim.defer_fn(function()
-            vim.api.nvim_exec('startinsert', false)
-            vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
-            vim.defer_fn(function()
-                vim.api.nvim_set_current_win(current_win)
-                if current_mode:sub(1, 1) == 'i' then
-                    vim.defer_fn(function()
-                        vim.api.nvim_exec('startinsert', false)
-                        M.interrupting = false
-                    end, 50)
-                else
+            require('sky-term').toggle_term_wrapper()
+            if current_mode:sub(1, 1) == 'i' then
+                vim.defer_fn(function()
+                    vim.cmd('startinsert')
                     M.interrupting = false
-                end
-            end, 50)
-        end, 100)
-    end
+                end, 50)
+            else
+                M.interrupting = false
+            end
+        end, 50)
+    end, 100)
 end
+-- function M.send_interrupt()
+--     if M.interrupting then
+--         return
+--     end
+--     M.interrupting = true
+--     local current_win = vim.api.nvim_get_current_win()
+--     local current_mode = vim.api.nvim_get_mode().mode
+--     local buf_type = vim.api.nvim_buf_get_option(vim.api.nvim_get_current_buf(), 'buftype')
+--     local terminal_win = nil
+
+--     if buf_type == 'terminal' then
+--         terminal_win = vim.api.nvim_get_current_win()
+--     else
+--         for _, win in ipairs(vim.api.nvim_list_wins()) do
+--             local buf = vim.api.nvim_win_get_buf(win)
+--             if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
+--                 terminal_win = win
+--                 break
+--             end
+--         end
+--         if not terminal_win then
+--             vim.api.nvim_exec('ToggleSkyTerm', false)
+--             for _, win in ipairs(vim.api.nvim_list_wins()) do
+--                 local buf = vim.api.nvim_win_get_buf(win)
+--                 if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
+--                     terminal_win = win
+--                     break
+--                 end
+--             end
+--         end
+--     end
+
+--     if terminal_win then
+--         vim.api.nvim_set_current_win(terminal_win)
+--         vim.defer_fn(function()
+--             vim.api.nvim_exec('startinsert', false)
+--             vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
+--             vim.defer_fn(function()
+--                 vim.api.nvim_set_current_win(current_win)
+--                 if current_mode:sub(1, 1) == 'i' then
+--                     vim.defer_fn(function()
+--                         vim.api.nvim_exec('startinsert', false)
+--                         M.interrupting = false
+--                     end, 50)
+--                 else
+--                     M.interrupting = false
+--                 end
+--             end, 50)
+--         end, 100)
+--     end
+-- end
 
 function M.bind_commands(json_data)
     if json_data and type(json_data) == "table" then
@@ -426,7 +449,7 @@ function M.bind_commands(json_data)
                             { noremap = true, silent = true })
                     else
                         vim.api.nvim_set_keymap(mode, v.keybind,
-                            "<Cmd>ToggleSkyTerm cmd='" .. cmd .. "'<CR>",
+                            "<Cmd>lua require('sky-term').send_to_term('" .. cmd .. "')<CR>",
                             { noremap = true, silent = true })
                     end
                 end
@@ -434,6 +457,7 @@ function M.bind_commands(json_data)
         end
     end
 end
+
 
 function M.load_json()
     local bufnr = vim.api.nvim_win_get_buf(0)
@@ -552,7 +576,7 @@ function M.complete_variables_in_commands(command)
         end
         cmd = cmd:gsub("`%${" .. var .. "}%`", values[var])
     end
-    vim.api.nvim_command("ToggleSkyTerm cmd='" .. cmd .. "'")
+    require('sky-term').send_to_term(cmd)
 end
 
 M.commands = {
