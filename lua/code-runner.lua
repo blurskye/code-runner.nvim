@@ -408,45 +408,41 @@ function M.bind_commands(json_data)
     end
 end
 
-function M.load_json()
-    local bufnr = vim.api.nvim_win_get_buf(0)
+function M.find_coderun_json_path()
+    local bufnr = vim.api.nvim_get_current_buf()
     local file_path = vim.api.nvim_buf_get_name(bufnr)
     local file_dir = vim.fn.fnamemodify(file_path, ":h")
     local root_dir = "/"
 
-    local function find_json()
-        while file_dir ~= root_dir do
-            local json_path = file_dir .. "/coderun.json"
-            local file = io.open(json_path, "r")
+    while file_dir ~= root_dir do
+        local json_path = file_dir .. "/coderun.json"
+        if vim.fn.filereadable(json_path) == 1 then
+            return json_path
+        end
+        local parent_dir = vim.fn.fnamemodify(file_dir, ":h")
+        if parent_dir == file_dir then
+            break
+        end
+        file_dir = parent_dir
+    end
+    return nil
+end
 
-            if file then
-                local content = file:read("*all")
-                file:close()
-                local success, data = pcall(vim.fn.json_decode, content)
-                if success and type(data) == "table" then
-                    return data, json_path, file_dir
+function M.load_json()
+    local json_path = M.find_coderun_json_path()
+    
+    if json_path then
+        local file = io.open(json_path, "r")
+        if file then
+            local content = file:read("*all")
+            file:close()
+            local success, json_data = pcall(vim.fn.json_decode, content)
+            if success and type(json_data) == "table" then
+                local json_dir = vim.fn.fnamemodify(json_path, ":h")
+                if not vim.deep_equal(json_data, M.last_loaded_json) then
+                    M.show_confirmation_popup(json_data, json_path, json_dir)
                 end
             end
-
-            local parent_dir = vim.fn.fnamemodify(file_dir, ":h")
-            if parent_dir == file_dir then
-                break
-            end
-            file_dir = parent_dir
-        end
-        return nil, nil, nil
-    end
-
-    local json_data, json_path, json_dir = find_json()
-    
-    if json_data then
-        if not vim.deep_equal(json_data, M.last_loaded_json) then
-            -- JSON has changed or is newly loaded, show confirmation popup
-            M.show_confirmation_popup(json_data, json_path, json_dir)
-        else
-            -- JSON hasn't changed, use the existing configuration
-            M.coderun_json_dir = json_dir
-            M.bind_commands(json_data)
         end
     else
         -- No JSON found, use default configuration
@@ -619,8 +615,24 @@ function M.setup(opts)
             { noremap = true, silent = true })
     end
 
-    -- Watch for changes in coderun.json
-    M.watch_coderun_json()
+    -- Start watching coderun.json
+    M.start_watching_coderun_json()
+end
+
+function M.start_watching_coderun_json()
+    M.last_modified_time = 0
+    M.watch_timer = vim.loop.new_timer()
+    
+    M.watch_timer:start(0, 1000, vim.schedule_wrap(function()
+        local json_path = M.find_coderun_json_path()
+        if json_path then
+            local stat = vim.loop.fs_stat(json_path)
+            if stat and stat.mtime.sec > M.last_modified_time then
+                M.last_modified_time = stat.mtime.sec
+                M.load_json()
+            end
+        end
+    end))
 end
 
 function M.handle_buffer_enter()
@@ -639,26 +651,6 @@ function M.handle_buffer_exit()
             local file_extension = vim.fn.expand("%:e")
             M.unbind_commands(M.generate_commands_table(file_extension))
         end
-    end
-end
-
-function M.watch_coderun_json()
-    local function on_change(err, fname, status)
-        if err then
-            print("Error watching coderun.json: " .. err)
-            return
-        end
-        if status.change == "change" then
-            vim.schedule(function()
-                M.load_json()
-            end)
-        end
-    end
-
-    local json_path = M.coderun_json_dir and (M.coderun_json_dir .. "/coderun.json") or nil
-    if json_path then
-        local handle = uv.new_fs_event()
-        uv.fs_event_start(handle, json_path, {}, vim.schedule_wrap(on_change))
     end
 end
 
