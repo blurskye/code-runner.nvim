@@ -218,51 +218,36 @@ end
 --         M.confirmation_popup = nil
 --     end)
 -- end
-function M.show_confirmation_popup(json_data, json_path, file_dir)
-    if M.confirmation_popup then
-        M.confirmation_popup:unmount()
+function set_keymaps(bufnr, json_data, file_dir)
+    local function accept_config()
+        M.coderun_json_dir = file_dir
+        M.last_loaded_json = json_data
+        M.bind_commands(json_data)
+        vim.api.nvim_win_close(M.confirmation_window, true)
     end
 
-    local width = math.floor(vim.o.columns * 0.8)
-    local height = math.floor(vim.o.lines * 0.8)
+    local function reject_config()
+        M.coderun_json_dir = nil
+        M.last_loaded_json = nil
+        local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
+        M.bind_commands(default_commands)
+        vim.api.nvim_win_close(M.confirmation_window, true)
+    end
 
-    M.confirmation_popup = vim.api.nvim_create_buf(false, true)
-    local win_opts = {
-        style = "minimal",
-        relative = "editor",
-        width = width,
-        height = height,
-        row = math.floor((vim.o.lines - height) / 2),
-        col = math.floor((vim.o.columns - width) / 2),
-        border = "rounded",
-    }
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'y', '', {callback = accept_config, noremap = true})
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'n', '', {callback = reject_config, noremap = true})
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'q', '', {callback = reject_config, noremap = true})
 
-    M.confirmation_window = vim.api.nvim_open_win(M.confirmation_popup, true, win_opts)
-
-    -- Set buffer options
-    vim.api.nvim_buf_set_option(M.confirmation_popup, 'modifiable', true)
-    vim.api.nvim_buf_set_option(M.confirmation_popup, 'buftype', 'nofile')
-    vim.api.nvim_buf_set_option(M.confirmation_popup, 'swapfile', false)
-    vim.api.nvim_buf_set_option(M.confirmation_popup, 'bufhidden', 'wipe')
-
-    -- Set content
-    set_content(M.confirmation_popup, json_path, json_data)
-
-    -- Set keymaps
-    set_keymaps(M.confirmation_popup, json_data, file_dir)
-
-    -- Close on BufLeave
-    vim.api.nvim_create_autocmd("BufLeave", {
-        buffer = M.confirmation_popup,
-        callback = function()
-            if vim.api.nvim_win_is_valid(M.confirmation_window) then
-                vim.api.nvim_win_close(M.confirmation_window, true)
-            end
-            M.confirmation_popup = nil
-            M.confirmation_window = nil
-        end,
-    })
+    -- Capture all other keypresses
+    local other_keys = "abcdefghijklmoprstuvwxzABCDEFGHIJKLMNOPRSTUVWXYZ0123456789"
+    for i = 1, #other_keys do
+        local char = other_keys:sub(i,i)
+        if char ~= 'y' and char ~= 'n' and char ~= 'q' then
+            vim.api.nvim_buf_set_keymap(bufnr, 'n', char, '', {callback = function() end, noremap = true})
+        end
+    end
 end
+
 function set_content(bufnr, json_path, json_data)
     local lines = {
         "A coderun.json file has been found at:",
@@ -320,8 +305,6 @@ end
 --     end
 -- end
 function set_keymaps(bufnr, json_data, file_dir)
-    local opts = { noremap = true, silent = true }
-
     local function accept_config()
         M.coderun_json_dir = file_dir
         M.last_loaded_json = json_data
@@ -337,30 +320,16 @@ function set_keymaps(bufnr, json_data, file_dir)
         vim.api.nvim_win_close(M.confirmation_window, true)
     end
 
-    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'y', "", {
-        callback = accept_config,
-        noremap = true,
-        silent = true,
-    })
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'y', '', {callback = accept_config, noremap = true})
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'n', '', {callback = reject_config, noremap = true})
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'q', '', {callback = reject_config, noremap = true})
 
-    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'n', "", {
-        callback = reject_config,
-        noremap = true,
-        silent = true,
-    })
-
-    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'q', "", {
-        callback = reject_config,
-        noremap = true,
-        silent = true,
-    })
-
-    -- Disable other keymaps
-    local keys = "abcdefghijklmoprstuvwxzABCDEFGHIJKLMNOPRSTUVWXYZ0123456789"
-    for i = 1, #keys do
-        local char = keys:sub(i,i)
+    -- Capture all other keypresses
+    local other_keys = "abcdefghijklmoprstuvwxzABCDEFGHIJKLMNOPRSTUVWXYZ0123456789"
+    for i = 1, #other_keys do
+        local char = other_keys:sub(i,i)
         if char ~= 'y' and char ~= 'n' and char ~= 'q' then
-            vim.api.nvim_buf_set_keymap(bufnr, 'n', char, '', { noremap = true, silent = true })
+            vim.api.nvim_buf_set_keymap(bufnr, 'n', char, '', {callback = function() end, noremap = true})
         end
     end
 end
