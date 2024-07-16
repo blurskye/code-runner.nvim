@@ -81,6 +81,7 @@ function M.send_interrupt()
     end
 end
 
+
 function M.bind_commands(json_data)
     if json_data and type(json_data) == "table" then
         for _, v in pairs(json_data) do
@@ -111,13 +112,27 @@ function M.bind_commands(json_data)
                             { noremap = true, silent = true })
                     else
                         vim.api.nvim_set_keymap(mode, v.keybind,
-                            "<Cmd>ToggleSkyTerm cmd='" .. cmd .. "'<CR>",
+                            "<Cmd>lua require('sky-term').send_to_term('" .. cmd .. "')<CR>",
                             { noremap = true, silent = true })
                     end
                 end
             end
         end
     end
+end
+
+function M.complete_variables_in_commands(command)
+    local cmd = command
+    local values = {}
+
+    for var in string.gmatch(cmd, "`%${(.-)}%`") do
+        if not values[var] then
+            local value = vim.fn.input('Enter value for ' .. var .. ': ')
+            values[var] = value
+        end
+        cmd = cmd:gsub("`%${" .. var .. "}%`", values[var])
+    end
+    require('sky-term').send_to_term(cmd)
 end
 
 function M.load_json()
