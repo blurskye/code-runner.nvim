@@ -220,168 +220,84 @@ end
 -- end
 function M.show_confirmation_popup(json_data, json_path, file_dir)
     if M.confirmation_popup then
-        vim.api.nvim_win_close(M.confirmation_window, true)
+        M.confirmation_popup:unmount()
     end
 
     local width = math.floor(vim.o.columns * 0.8)
     local height = math.floor(vim.o.lines * 0.8)
 
-    M.confirmation_popup = vim.api.nvim_create_buf(false, true)
-    local win_opts = {
-        style = "minimal",
-        relative = "editor",
-        width = width,
-        height = height,
-        row = math.floor((vim.o.lines - height) / 2),
-        col = math.floor((vim.o.columns - width) / 2),
-        border = "rounded",
-    }
-
-    M.confirmation_window = vim.api.nvim_open_win(M.confirmation_popup, true, win_opts)
-
-    -- Set buffer options
-    vim.api.nvim_buf_set_option(M.confirmation_popup, 'modifiable', true)
-    vim.api.nvim_buf_set_option(M.confirmation_popup, 'buftype', 'nofile')
-    vim.api.nvim_buf_set_option(M.confirmation_popup, 'swapfile', false)
-    vim.api.nvim_buf_set_option(M.confirmation_popup, 'bufhidden', 'wipe')
-
-    -- Set content
-    set_content(M.confirmation_popup, json_path, json_data)
-
-    -- Set keymaps
-    set_keymaps(M.confirmation_popup, json_data, file_dir)
-
-    -- Set up autocommands to handle window closure
-    vim.api.nvim_create_autocmd({"BufLeave", "BufUnload", "BufDelete"}, {
-        buffer = M.confirmation_popup,
-        callback = function()
-            if vim.api.nvim_win_is_valid(M.confirmation_window) then
-                vim.api.nvim_win_close(M.confirmation_window, true)
-            end
-            M.confirmation_popup = nil
-            M.confirmation_window = nil
-        end,
-        once = true,
+    M.confirmation_popup = Popup({
+        enter = true,
+        focusable = true,
+        border = {
+            style = "rounded",
+            text = {
+                top = " Confirm coderun.json ",
+                top_align = "center",
+            },
+        },
+        position = {
+            row = math.floor((vim.o.lines - height) / 2),
+            col = math.floor((vim.o.columns - width) / 2),
+        },
+        size = {
+            width = width,
+            height = height,
+        },
+        buf_options = {
+            modifiable = true,
+            readonly = false,
+        },
     })
 
-    -- Capture all keypresses
-    vim.api.nvim_buf_set_keymap(M.confirmation_popup, 'n', '<Space>', '', {callback = function() end, noremap = true})
-end
-function set_keymaps(bufnr, json_data, file_dir)
-    local function accept_config()
+    local function set_content()
+        local lines = {}
+        table.insert(lines, "A coderun.json file has been found at:")
+        table.insert(lines, json_path)
+        table.insert(lines, "")
+        table.insert(lines, "Contents:")
+        table.insert(lines, "")
+        
+        -- Read and format JSON content
+        local json_content = vim.fn.readfile(json_path)
+        for _, line in ipairs(json_content) do
+            table.insert(lines, line)
+        end
+        
+        table.insert(lines, "")
+        table.insert(lines, "Do you want to use this configuration?")
+        table.insert(lines, "Press 'y' to accept, 'n' to reject and use default configuration.")
+
+        local bufnr = M.confirmation_popup.bufnr
+        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+    end
+
+    M.confirmation_popup:mount()
+    set_content()
+
+    M.confirmation_popup:map("n", "y", function()
+        M.confirmation_popup:unmount()
         M.coderun_json_dir = file_dir
         M.last_loaded_json = json_data
         M.bind_commands(json_data)
-        vim.api.nvim_win_close(M.confirmation_window, true)
-    end
+        M.confirmation_popup = nil
+    end, { noremap = true })
 
-    local function reject_config()
+    M.confirmation_popup:map("n", "n", function()
+        M.confirmation_popup:unmount()
         M.coderun_json_dir = nil
         M.last_loaded_json = nil
         local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
         M.bind_commands(default_commands)
-        vim.api.nvim_win_close(M.confirmation_window, true)
-    end
+        M.confirmation_popup = nil
+    end, { noremap = true })
 
-    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'y', '', {callback = accept_config, noremap = true})
-    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'n', '', {callback = reject_config, noremap = true})
-    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'q', '', {callback = reject_config, noremap = true})
-
-    -- Capture all other keypresses
-    local other_keys = "abcdefghijklmoprstuvwxzABCDEFGHIJKLMNOPRSTUVWXYZ0123456789"
-    for i = 1, #other_keys do
-        local char = other_keys:sub(i,i)
-        if char ~= 'y' and char ~= 'n' and char ~= 'q' then
-            vim.api.nvim_buf_set_keymap(bufnr, 'n', char, '', {callback = function() end, noremap = true})
-        end
-    end
+    M.confirmation_popup:on(event.BufLeave, function()
+        M.confirmation_popup:unmount()
+        M.confirmation_popup = nil
+    end)
 end
 
-function set_content(bufnr, json_path, json_data)
-    local lines = {
-        "A coderun.json file has been found at:",
-        json_path,
-        "",
-        "Contents:",
-        "",
-    }
-    
-    -- Add JSON content
-    for _, line in ipairs(vim.fn.readfile(json_path)) do
-        table.insert(lines, line)
-    end
-    
-    table.insert(lines, "")
-    table.insert(lines, "Do you want to use this configuration?")
-    table.insert(lines, "Press 'y' to accept, 'n' to reject and use default configuration.")
-
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-end
-
--- function set_keymaps(bufnr, json_data, file_dir)
---     local opts = { noremap = true, silent = true }
-
---     vim.api.nvim_buf_set_keymap(bufnr, 'n', 'y', "", {
---         callback = function()
---             M.coderun_json_dir = file_dir
---             M.last_loaded_json = json_data
---             M.bind_commands(json_data)
---             vim.api.nvim_win_close(M.confirmation_window, true)
---         end,
---         noremap = true,
---         silent = true,
---     })
-
---     vim.api.nvim_buf_set_keymap(bufnr, 'n', 'n', "", {
---         callback = function()
---             M.coderun_json_dir = nil
---             M.last_loaded_json = nil
---             local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
---             M.bind_commands(default_commands)
---             vim.api.nvim_win_close(M.confirmation_window, true)
---         end,
---         noremap = true,
---         silent = true,
---     })
-
---     -- Disable other keymaps
---     local keys = "abcdefghijklmopqrstuvwxzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
---     for i = 1, #keys do
---         local char = keys:sub(i,i)
---         if char ~= 'y' and char ~= 'n' then
---             vim.api.nvim_buf_set_keymap(bufnr, 'n', char, '', { noremap = true, silent = true })
---         end
---     end
--- end
-function set_keymaps(bufnr, json_data, file_dir)
-    local function accept_config()
-        M.coderun_json_dir = file_dir
-        M.last_loaded_json = json_data
-        M.bind_commands(json_data)
-        vim.api.nvim_win_close(M.confirmation_window, true)
-    end
-
-    local function reject_config()
-        M.coderun_json_dir = nil
-        M.last_loaded_json = nil
-        local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
-        M.bind_commands(default_commands)
-        vim.api.nvim_win_close(M.confirmation_window, true)
-    end
-
-    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'y', '', {callback = accept_config, noremap = true})
-    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'n', '', {callback = reject_config, noremap = true})
-    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'q', '', {callback = reject_config, noremap = true})
-
-    -- Capture all other keypresses
-    local other_keys = "abcdefghijklmoprstuvwxzABCDEFGHIJKLMNOPRSTUVWXYZ0123456789"
-    for i = 1, #other_keys do
-        local char = other_keys:sub(i,i)
-        if char ~= 'y' and char ~= 'n' and char ~= 'q' then
-            vim.api.nvim_buf_set_keymap(bufnr, 'n', char, '', {callback = function() end, noremap = true})
-        end
-    end
-end
 function M.complete_variables_in_commands(command)
     local cmd = command
     local values = {}
@@ -453,35 +369,6 @@ function M.generate_commands_table(file_extension)
     return commands_table
 end
 
--- function M.setup(opts)
---     M.opts = opts or {}
---     M.opts.keymap = M.opts.keymap or '<F5>'
-
---     if M.opts.commands then
---         for k, v in pairs(M.opts.commands) do
---             M.commands[k] = v
---         end
---     end
---     if M.opts.extensions then
---         for k, v in pairs(M.opts.extensions) do
---             M.extensions[k] = v
---         end
---     end
-
---     M.last_loaded_json = nil
---     M.load_json()
-
---     M.opts.interrupt_keymap = M.opts.interrupt_keymap or '<F2>'
---     local modes = { 'n', 'i', 'v', 't' }
---     for _, mode in ipairs(modes) do
---         vim.api.nvim_set_keymap(mode, M.opts.interrupt_keymap,
---             "<Cmd>lua require('code-runner').send_interrupt()<CR>",
---             { noremap = true, silent = true })
---     end
-
---     -- Start watching coderun.json
---     M.start_watching_coderun_json()
--- end
 function M.setup(opts)
     M.opts = opts or {}
     M.opts.keymap = M.opts.keymap or '<F5>'
@@ -498,18 +385,7 @@ function M.setup(opts)
     end
 
     M.last_loaded_json = nil
-    
-    -- Delay the initial JSON loading
-    vim.api.nvim_create_autocmd("BufEnter", {
-        pattern = "*",
-        callback = function()
-            if not M.initial_load_done then
-                M.load_json()
-                M.initial_load_done = true
-            end
-        end,
-        once = true
-    })
+    M.load_json()
 
     M.opts.interrupt_keymap = M.opts.interrupt_keymap or '<F2>'
     local modes = { 'n', 'i', 'v', 't' }
@@ -547,5 +423,3 @@ end
 
 
 return M
-
-
