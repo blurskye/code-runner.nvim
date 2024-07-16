@@ -1,13 +1,13 @@
 local M = {}
+local uv = vim.loop
 
 function M.unbind_commands(json_data)
     local modes = { 'n', 'i', 'v', 't' }
 
-    if (json_data) then
+    if json_data and type(json_data) == "table" then
         for _, v in pairs(json_data) do
             if v.command and v.keybind then
                 for _, mode in ipairs(modes) do
-                    -- Unbind the keymap in all modes
                     vim.api.nvim_set_keymap(mode, v.keybind, '', { noremap = true, silent = true })
                 end
             end
@@ -16,15 +16,11 @@ function M.unbind_commands(json_data)
 end
 
 function M.adjust_command_path()
-    if M.coderun_json_dir then
-        return M.coderun_json_dir
-    end
-
-    return vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h") -- Default to current dir
+    return M.coderun_json_dir or vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h")
 end
 
 local function keybind_exists(keybind)
-    local keymaps = vim.api.nvim_get_keymap('n') -- 'n' for normal mode
+    local keymaps = vim.api.nvim_get_keymap('n')
     for _, map in pairs(keymaps) do
         if map.lhs == keybind then
             return true
@@ -34,22 +30,19 @@ local function keybind_exists(keybind)
 end
 
 function M.send_interrupt()
-    if M.interupting then
+    if M.interrupting then
         return
     end
-    M.interupting = true
+    M.interrupting = true
     local current_win = vim.api.nvim_get_current_win()
     local current_mode = vim.api.nvim_get_mode().mode
-    -- Check if the current buffer is a terminal
     local buf_type = vim.api.nvim_buf_get_option(vim.api.nvim_get_current_buf(), 'buftype')
     local terminal_win = nil
+
     if buf_type == 'terminal' then
         terminal_win = vim.api.nvim_get_current_win()
     else
-        -- Get a list of all open windows
-        local windows = vim.api.nvim_list_wins()
-        for _, win in ipairs(windows) do
-            -- Check if the window's buffer is a terminal
+        for _, win in ipairs(vim.api.nvim_list_wins()) do
             local buf = vim.api.nvim_win_get_buf(win)
             if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
                 terminal_win = win
@@ -57,13 +50,8 @@ function M.send_interrupt()
             end
         end
         if not terminal_win then
-            -- Open a new terminal if no terminal buffer was found
-            vim.api.nvim_exec(':ToggleTerm', false)
-
-
-            local windows = vim.api.nvim_list_wins()
-            for _, win in ipairs(windows) do
-                -- Check if the window's buffer is a terminal
+            vim.api.nvim_exec('ToggleSkyTerm', false)
+            for _, win in ipairs(vim.api.nvim_list_wins()) do
                 local buf = vim.api.nvim_win_get_buf(win)
                 if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
                     terminal_win = win
@@ -72,23 +60,21 @@ function M.send_interrupt()
             end
         end
     end
+
     if terminal_win then
         vim.api.nvim_set_current_win(terminal_win)
         vim.defer_fn(function()
-            -- Send Ctrl+C to the terminal buffer
             vim.api.nvim_exec('startinsert', false)
             vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
             vim.defer_fn(function()
-                -- Switch back to the original window
                 vim.api.nvim_set_current_win(current_win)
-                print("current mode: " .. current_mode)
                 if current_mode:sub(1, 1) == 'i' then
                     vim.defer_fn(function()
                         vim.api.nvim_exec('startinsert', false)
-                        M.interupting = false
+                        M.interrupting = false
                     end, 50)
                 else
-                    M.interupting = false
+                    M.interrupting = false
                 end
             end, 50)
         end, 100)
@@ -96,12 +82,10 @@ function M.send_interrupt()
 end
 
 function M.bind_commands(json_data)
-    if (json_data) then
+    if json_data and type(json_data) == "table" then
         for _, v in pairs(json_data) do
             if v.command and v.keybind then
                 local file_buffer = vim.api.nvim_buf_get_name(0)
-
-                -- local file_path = '"' .. file_buffer .. '"'
                 local file_path = '"' .. M.adjust_command_path() .. '"'
                 local file_dir = '"' .. vim.fn.fnamemodify(file_buffer, ":h") .. '"'
                 local file_name = '"' .. vim.fn.fnamemodify(file_buffer, ":t") .. '"'
@@ -109,11 +93,11 @@ function M.bind_commands(json_data)
                 local file_extension = '"' .. vim.fn.fnamemodify(file_buffer, ":e") .. '"'
 
                 local cmd = v.command
-                cmd = cmd:gsub("$dir", file_path)
-                cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
-                cmd = cmd:gsub("$fileName", file_name)
-                cmd = cmd:gsub("$fileExtension", file_extension)
-                cmd = cmd:gsub("$filePath", file_path)
+                    :gsub("$dir", file_dir)
+                    :gsub("$fileNameWithoutExt", file_name_without_ext)
+                    :gsub("$fileName", file_name)
+                    :gsub("$fileExtension", file_extension)
+                    :gsub("$filePath", file_path)
 
                 local modes = { 'n', 'i', 'v', 't' }
                 for _, mode in ipairs(modes) do
@@ -121,9 +105,13 @@ function M.bind_commands(json_data)
                         vim.api.nvim_set_keymap(mode, v.keybind,
                             "<Cmd>" .. string.sub(v.command, 2) .. "<CR>",
                             { noremap = true, silent = true })
+                    elseif string.match(v.command, "`%${(.-)}%`") then
+                        vim.api.nvim_set_keymap(mode, v.keybind,
+                            "<Cmd>lua require('code-runner').complete_variables_in_commands('" .. cmd .. "')<CR>",
+                            { noremap = true, silent = true })
                     else
                         vim.api.nvim_set_keymap(mode, v.keybind,
-                            "<Cmd>TermExec cmd='" .. cmd .. "'<CR>",
+                            "<Cmd>ToggleSkyTerm cmd='" .. cmd .. "'<CR>",
                             { noremap = true, silent = true })
                     end
                 end
@@ -138,6 +126,15 @@ function M.load_json()
     local file_dir = vim.fn.fnamemodify(file_path, ":h")
     local root_dir = "/"
 
+    local function process_json(content)
+        local success, data = pcall(vim.fn.json_decode, content)
+        if success and type(data) == "table" then
+            M.coderun_json_dir = file_dir
+            return data
+        end
+        return nil
+    end
+
     while file_dir ~= root_dir do
         local json_path = file_dir .. "/coderun.json"
         local file = io.open(json_path, "r")
@@ -145,14 +142,14 @@ function M.load_json()
         if file then
             local content = file:read("*all")
             file:close()
-
-            local data = vim.fn.json_decode(content)
-            M.coderun_json_dir = file_dir
-            return data
+            local data = process_json(content)
+            if data then
+                return data
+            end
         end
 
         local parent_dir = vim.fn.fnamemodify(file_dir, ":h")
-        if parent_dir == file_dir then -- We've reached the root directory
+        if parent_dir == file_dir then
             M.coderun_json_dir = nil
             break
         end
@@ -160,6 +157,20 @@ function M.load_json()
     end
 
     return nil
+end
+
+function M.complete_variables_in_commands(command)
+    local cmd = command
+    local values = {}
+
+    for var in string.gmatch(cmd, "`%${(.-)}%`") do
+        if not values[var] then
+            local value = vim.fn.input('Enter value for ' .. var .. ': ')
+            values[var] = value
+        end
+        cmd = cmd:gsub("`%${" .. var .. "}%`", values[var])
+    end
+    vim.api.nvim_command("ToggleSkyTerm cmd='" .. cmd .. "'")
 end
 
 M.commands = {
@@ -203,6 +214,7 @@ M.extensions = {
     pascal = { "pas" },
     nim = { "nim" }
 }
+
 function M.generate_commands_table(file_extension)
     local commands_table = {}
     for language, extensions in pairs(M.extensions) do
@@ -222,7 +234,6 @@ function M.setup(opts)
     M.opts = opts or {}
     M.opts.keymap = M.opts.keymap or '<F5>'
 
-    -- Overwrite the default commands and extensions with the user-provided commands
     if M.opts.commands then
         for k, v in pairs(M.opts.commands) do
             M.commands[k] = v
@@ -234,28 +245,27 @@ function M.setup(opts)
         end
     end
 
-    if M.opts.run_tmux ~= false then
-        vim.cmd("TermExec cmd='tmux new-session -A -s nvim'")
-        vim.cmd("ToggleTerm")
-    end
     M.coderun_json = M.load_json()
-    if (M.coderun_json) then
+    if M.coderun_json then
         M.bind_commands(M.coderun_json)
     else
         M.coderun_json = M.generate_commands_table(vim.fn.expand("%:e"))
         M.bind_commands(M.coderun_json)
     end
+
     vim.api.nvim_exec([[
-            augroup CodeRunner
-                autocmd!
-                autocmd BufEnter * lua require('code-runner').handle_buffer_enter()
-                autocmd BufLeave * lua require('code-runner').handle_buffer_exit()
-                augroup END
-                ]], false)
+        augroup CodeRunner
+            autocmd!
+            autocmd BufEnter * lua require('code-runner').handle_buffer_enter()
+            autocmd BufLeave * lua require('code-runner').handle_buffer_exit()
+        augroup END
+    ]], false)
+
     M.opts.interrupt_keymap = M.opts.interrupt_keymap or '<F2>'
     local modes = { 'n', 'i', 'v', 't' }
     for _, mode in ipairs(modes) do
-        vim.api.nvim_set_keymap(mode, M.opts.interrupt_keymap, "<Cmd>lua require('code-runner').send_interrupt()<CR>",
+        vim.api.nvim_set_keymap(mode, M.opts.interrupt_keymap,
+            "<Cmd>lua require('code-runner').send_interrupt()<CR>",
             { noremap = true, silent = true })
     end
 end
@@ -264,10 +274,7 @@ function M.handle_buffer_enter()
     local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
     if buftype ~= 'terminal' and buftype ~= 'nofile' and buftype == '' then
         M.coderun_json = M.load_json()
-        M.json_data = M.load_json()
-        -- print(M.table_to_string(M.json_data))
-
-        if (M.coderun_json) then
+        if M.coderun_json then
             M.bind_commands(M.coderun_json)
         else
             M.coderun_json = M.generate_commands_table(vim.fn.expand("%:e"))
@@ -278,14 +285,12 @@ end
 
 function M.handle_buffer_exit()
     local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
-    -- print("buff type if (" .. buftype .. ")")
     if buftype == 'nofile' or buftype == "" then
-        -- print("tried to unbind")
         if M.coderun_json then
             M.unbind_commands(M.coderun_json)
         else
             local file_extension = vim.fn.expand("%:e")
-            M.bind_commands(M.generate_commands_table(file_extension))
+            M.unbind_commands(M.generate_commands_table(file_extension))
         end
     end
 end
