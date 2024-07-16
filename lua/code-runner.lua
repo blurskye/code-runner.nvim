@@ -453,6 +453,77 @@ function M.load_json()
     end
 end
 
+-- function M.show_confirmation_popup(json_data, json_path, file_dir)
+--     if M.confirmation_popup then
+--         M.confirmation_popup:unmount()
+--     end
+
+--     M.confirmation_popup = Popup({
+--         enter = true,
+--         focusable = true,
+--         border = {
+--             style = "rounded",
+--             text = {
+--                 top = " Confirm coderun.json ",
+--                 top_align = "center",
+--             },
+--         },
+--         position = {
+--             row = "50%",
+--             col = "50%",
+--         },
+--         size = {
+--             width = "80%",
+--             height = "60%",
+--         },
+--         relative = "editor",
+--     })
+
+--     local formatted_json = vim.fn.json_encode(json_data)
+--     formatted_json = vim.fn.substitute(formatted_json, '[{}]', '{\n}', 'g')
+--     formatted_json = vim.fn.substitute(formatted_json, '":"', '": "', 'g')
+--     formatted_json = vim.fn.substitute(formatted_json, '","', '",\n"', 'g')
+
+--     local content = string.format([[
+-- A coderun.json file has been found at:
+-- %s
+
+-- Contents:
+-- %s
+
+-- Do you want to use this configuration?
+-- Press 'y' to accept, 'n' to reject and use default configuration.
+--     ]], json_path, formatted_json)
+
+--     M.confirmation_popup:mount()
+--     vim.api.nvim_buf_set_lines(M.confirmation_popup.bufnr, 0, -1, false, vim.split(content, "\n"))
+--     vim.api.nvim_buf_set_option(M.confirmation_popup.bufnr, "modifiable", false)
+
+--     M.confirmation_popup:map("n", "y", function()
+--         M.confirmation_popup:unmount()
+--         M.coderun_json_dir = file_dir
+--         M.last_loaded_json = json_data
+--         M.bind_commands(json_data)
+--         M.confirmation_popup = nil
+--     end, { noremap = true })
+
+--     M.confirmation_popup:map("n", "n", function()
+--         M.confirmation_popup:unmount()
+--         M.coderun_json_dir = nil
+--         M.last_loaded_json = nil
+--         local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
+--         M.bind_commands(default_commands)
+--         M.confirmation_popup = nil
+--     end, { noremap = true })
+
+--     M.confirmation_popup:on(event.BufLeave, function()
+--         M.confirmation_popup:unmount()
+--         M.confirmation_popup = nil
+--     end)
+-- end
+local NuiText = require("nui.text")
+local NuiLine = require("nui.line")
+
 function M.show_confirmation_popup(json_data, json_path, file_dir)
     if M.confirmation_popup then
         M.confirmation_popup:unmount()
@@ -477,27 +548,64 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
             height = "60%",
         },
         relative = "editor",
+        buf_options = {
+            modifiable = true,
+            readonly = false,
+        },
     })
 
-    local formatted_json = vim.fn.json_encode(json_data)
-    formatted_json = vim.fn.substitute(formatted_json, '[{}]', '{\n}', 'g')
-    formatted_json = vim.fn.substitute(formatted_json, '":"', '": "', 'g')
-    formatted_json = vim.fn.substitute(formatted_json, '","', '",\n"', 'g')
+    local function set_simplified_view()
+        local lines = {
+            NuiText("A coderun.json file has been found at:", "Title"),
+            NuiText(json_path, "Comment"),
+            NuiText(""),
+            NuiText("Contents:", "Title"),
+        }
 
-    local content = string.format([[
-A coderun.json file has been found at:
-%s
+        for key, value in pairs(json_data) do
+            local line = NuiLine()
+            line:append(NuiText(key .. ": ", "Identifier"))
+            line:append(NuiText("keybind: ", "Type"))
+            line:append(NuiText(value.keybind, "String"))
+            line:append(NuiText(", "))
+            line:append(NuiText("command: ", "Type"))
+            line:append(NuiText(value.command, "String"))
+            table.insert(lines, line)
+        end
 
-Contents:
-%s
+        table.insert(lines, NuiText(""))
+        table.insert(lines, NuiText("Press 'y' to accept, 'n' to reject and use default configuration.", "WarningMsg"))
+        table.insert(lines, NuiText("Press 'j' to toggle JSON view.", "WarningMsg"))
 
-Do you want to use this configuration?
-Press 'y' to accept, 'n' to reject and use default configuration.
-    ]], json_path, formatted_json)
+        M.confirmation_popup:set_lines(lines)
+    end
+
+    local function set_json_view()
+        local json_string = vim.fn.json_encode(json_data)
+        local formatted_json = vim.fn.split(vim.fn.system("echo '" .. json_string .. "' | jq ."), "\n")
+        
+        local lines = {
+            NuiText("A coderun.json file has been found at:", "Title"),
+            NuiText(json_path, "Comment"),
+            NuiText(""),
+            NuiText("Contents (JSON):", "Title"),
+        }
+
+        for _, line in ipairs(formatted_json) do
+            table.insert(lines, NuiText(line))
+        end
+
+        table.insert(lines, NuiText(""))
+        table.insert(lines, NuiText("Press 'y' to accept, 'n' to reject and use default configuration.", "WarningMsg"))
+        table.insert(lines, NuiText("Press 'j' to toggle simplified view.", "WarningMsg"))
+
+        M.confirmation_popup:set_lines(lines)
+    end
+
+    local view_mode = "simplified"
+    set_simplified_view()
 
     M.confirmation_popup:mount()
-    vim.api.nvim_buf_set_lines(M.confirmation_popup.bufnr, 0, -1, false, vim.split(content, "\n"))
-    vim.api.nvim_buf_set_option(M.confirmation_popup.bufnr, "modifiable", false)
 
     M.confirmation_popup:map("n", "y", function()
         M.confirmation_popup:unmount()
@@ -514,6 +622,16 @@ Press 'y' to accept, 'n' to reject and use default configuration.
         local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
         M.bind_commands(default_commands)
         M.confirmation_popup = nil
+    end, { noremap = true })
+
+    M.confirmation_popup:map("n", "j", function()
+        if view_mode == "simplified" then
+            view_mode = "json"
+            set_json_view()
+        else
+            view_mode = "simplified"
+            set_simplified_view()
+        end
     end, { noremap = true })
 
     M.confirmation_popup:on(event.BufLeave, function()
