@@ -232,50 +232,47 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
         buf_options = {
             modifiable = true,
             readonly = false,
+            filetype = "json",
         },
     })
 
-    local function set_content(is_json_view)
+    local function set_content()
         local lines = {}
-        table.insert(lines, Line())
-        table.insert(lines, Line({ Text("A coderun.json file has been found at:", "Title") }))
-        table.insert(lines, Line({ Text(json_path, "Comment") }))
-        table.insert(lines, Line())
-        table.insert(lines, Line({ Text("Contents:", "Title") }))
-
-        if is_json_view then
-            local json_content = vim.fn.readfile(json_path)
-            for _, line in ipairs(json_content) do
-                table.insert(lines, Line({ Text(line, "Normal") }))
-            end
-        else
-            for key, value in pairs(json_data) do
-                local line = Line()
-                line:append(Text(key .. " : ", "Identifier"))
-                line:append(Text("keybind: ", "Type"))
-                line:append(Text(value.keybind or "", "String"))
-                line:append(Text(", command: ", "Type"))
-                line:append(Text(value.command or "", "String"))
-                table.insert(lines, line)
-            end
+        table.insert(lines, "A coderun.json file has been found at:")
+        table.insert(lines, json_path)
+        table.insert(lines, "")
+        table.insert(lines, "Contents:")
+        
+        -- Read and format JSON content
+        local json_content = vim.fn.readfile(json_path)
+        for _, line in ipairs(json_content) do
+            table.insert(lines, line)
         end
-
-        table.insert(lines, Line())
-        table.insert(lines, Line({ Text("Do you want to use this configuration?", "Question") }))
-        table.insert(lines, Line({ Text("Press 'y' to accept, 'n' to reject and use default configuration.", "WarningMsg") }))
-        table.insert(lines, Line({ Text("Press 'j' to toggle between formatted view and JSON view.", "WarningMsg") }))
+        
+        table.insert(lines, "")
+        table.insert(lines, "Do you want to use this configuration?")
+        table.insert(lines, "Press 'y' to accept, 'n' to reject and use default configuration.")
 
         local bufnr = M.confirmation_popup.bufnr
-        vim.api.nvim_buf_set_option(bufnr, "modifiable", true)
-        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {})
-        for _, line in ipairs(lines) do
-            line:render(bufnr, -1, -1)
+        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+        
+        -- Apply syntax highlighting
+        vim.api.nvim_buf_add_highlight(bufnr, -1, "Title", 0, 0, -1)
+        vim.api.nvim_buf_add_highlight(bufnr, -1, "Comment", 1, 0, -1)
+        vim.api.nvim_buf_add_highlight(bufnr, -1, "Title", 3, 0, -1)
+        
+        local json_start = 4
+        local json_end = #lines - 3
+        for i = json_start, json_end do
+            vim.api.nvim_buf_add_highlight(bufnr, -1, "Normal", i, 0, -1)
         end
-        vim.api.nvim_buf_set_option(bufnr, "modifiable", false)
+        
+        vim.api.nvim_buf_add_highlight(bufnr, -1, "Question", #lines - 2, 0, -1)
+        vim.api.nvim_buf_add_highlight(bufnr, -1, "WarningMsg", #lines - 1, 0, -1)
     end
 
     M.confirmation_popup:mount()
-    set_content(false)  -- Start with formatted view
+    set_content()
 
     M.confirmation_popup:map("n", "y", function()
         M.confirmation_popup:unmount()
@@ -292,11 +289,6 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
         local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
         M.bind_commands(default_commands)
         M.confirmation_popup = nil
-    end, { noremap = true })
-
-    M.confirmation_popup:map("n", "j", function()
-        M.is_json_view = not M.is_json_view
-        set_content(M.is_json_view)
     end, { noremap = true })
 
     M.confirmation_popup:on(event.BufLeave, function()
