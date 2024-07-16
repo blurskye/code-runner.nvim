@@ -218,6 +218,55 @@ end
 --         M.confirmation_popup = nil
 --     end)
 -- end
+function M.show_confirmation_popup(json_data, json_path, file_dir)
+    if M.confirmation_popup then
+        vim.api.nvim_win_close(M.confirmation_window, true)
+    end
+
+    local width = math.floor(vim.o.columns * 0.8)
+    local height = math.floor(vim.o.lines * 0.8)
+
+    M.confirmation_popup = vim.api.nvim_create_buf(false, true)
+    local win_opts = {
+        style = "minimal",
+        relative = "editor",
+        width = width,
+        height = height,
+        row = math.floor((vim.o.lines - height) / 2),
+        col = math.floor((vim.o.columns - width) / 2),
+        border = "rounded",
+    }
+
+    M.confirmation_window = vim.api.nvim_open_win(M.confirmation_popup, true, win_opts)
+
+    -- Set buffer options
+    vim.api.nvim_buf_set_option(M.confirmation_popup, 'modifiable', true)
+    vim.api.nvim_buf_set_option(M.confirmation_popup, 'buftype', 'nofile')
+    vim.api.nvim_buf_set_option(M.confirmation_popup, 'swapfile', false)
+    vim.api.nvim_buf_set_option(M.confirmation_popup, 'bufhidden', 'wipe')
+
+    -- Set content
+    set_content(M.confirmation_popup, json_path, json_data)
+
+    -- Set keymaps
+    set_keymaps(M.confirmation_popup, json_data, file_dir)
+
+    -- Set up autocommands to handle window closure
+    vim.api.nvim_create_autocmd({"BufLeave", "BufUnload", "BufDelete"}, {
+        buffer = M.confirmation_popup,
+        callback = function()
+            if vim.api.nvim_win_is_valid(M.confirmation_window) then
+                vim.api.nvim_win_close(M.confirmation_window, true)
+            end
+            M.confirmation_popup = nil
+            M.confirmation_window = nil
+        end,
+        once = true,
+    })
+
+    -- Capture all keypresses
+    vim.api.nvim_buf_set_keymap(M.confirmation_popup, 'n', '<Space>', '', {callback = function() end, noremap = true})
+end
 function set_keymaps(bufnr, json_data, file_dir)
     local function accept_config()
         M.coderun_json_dir = file_dir
