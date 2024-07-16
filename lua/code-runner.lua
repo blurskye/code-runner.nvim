@@ -284,37 +284,82 @@ function set_content(bufnr, json_path, json_data)
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
 end
 
+-- function set_keymaps(bufnr, json_data, file_dir)
+--     local opts = { noremap = true, silent = true }
+
+--     vim.api.nvim_buf_set_keymap(bufnr, 'n', 'y', "", {
+--         callback = function()
+--             M.coderun_json_dir = file_dir
+--             M.last_loaded_json = json_data
+--             M.bind_commands(json_data)
+--             vim.api.nvim_win_close(M.confirmation_window, true)
+--         end,
+--         noremap = true,
+--         silent = true,
+--     })
+
+--     vim.api.nvim_buf_set_keymap(bufnr, 'n', 'n', "", {
+--         callback = function()
+--             M.coderun_json_dir = nil
+--             M.last_loaded_json = nil
+--             local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
+--             M.bind_commands(default_commands)
+--             vim.api.nvim_win_close(M.confirmation_window, true)
+--         end,
+--         noremap = true,
+--         silent = true,
+--     })
+
+--     -- Disable other keymaps
+--     local keys = "abcdefghijklmopqrstuvwxzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+--     for i = 1, #keys do
+--         local char = keys:sub(i,i)
+--         if char ~= 'y' and char ~= 'n' then
+--             vim.api.nvim_buf_set_keymap(bufnr, 'n', char, '', { noremap = true, silent = true })
+--         end
+--     end
+-- end
 function set_keymaps(bufnr, json_data, file_dir)
     local opts = { noremap = true, silent = true }
 
+    local function accept_config()
+        M.coderun_json_dir = file_dir
+        M.last_loaded_json = json_data
+        M.bind_commands(json_data)
+        vim.api.nvim_win_close(M.confirmation_window, true)
+    end
+
+    local function reject_config()
+        M.coderun_json_dir = nil
+        M.last_loaded_json = nil
+        local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
+        M.bind_commands(default_commands)
+        vim.api.nvim_win_close(M.confirmation_window, true)
+    end
+
     vim.api.nvim_buf_set_keymap(bufnr, 'n', 'y', "", {
-        callback = function()
-            M.coderun_json_dir = file_dir
-            M.last_loaded_json = json_data
-            M.bind_commands(json_data)
-            vim.api.nvim_win_close(M.confirmation_window, true)
-        end,
+        callback = accept_config,
         noremap = true,
         silent = true,
     })
 
     vim.api.nvim_buf_set_keymap(bufnr, 'n', 'n', "", {
-        callback = function()
-            M.coderun_json_dir = nil
-            M.last_loaded_json = nil
-            local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
-            M.bind_commands(default_commands)
-            vim.api.nvim_win_close(M.confirmation_window, true)
-        end,
+        callback = reject_config,
+        noremap = true,
+        silent = true,
+    })
+
+    vim.api.nvim_buf_set_keymap(bufnr, 'n', 'q', "", {
+        callback = reject_config,
         noremap = true,
         silent = true,
     })
 
     -- Disable other keymaps
-    local keys = "abcdefghijklmopqrstuvwxzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    local keys = "abcdefghijklmoprstuvwxzABCDEFGHIJKLMNOPRSTUVWXYZ0123456789"
     for i = 1, #keys do
         local char = keys:sub(i,i)
-        if char ~= 'y' and char ~= 'n' then
+        if char ~= 'y' and char ~= 'n' and char ~= 'q' then
             vim.api.nvim_buf_set_keymap(bufnr, 'n', char, '', { noremap = true, silent = true })
         end
     end
@@ -390,6 +435,35 @@ function M.generate_commands_table(file_extension)
     return commands_table
 end
 
+-- function M.setup(opts)
+--     M.opts = opts or {}
+--     M.opts.keymap = M.opts.keymap or '<F5>'
+
+--     if M.opts.commands then
+--         for k, v in pairs(M.opts.commands) do
+--             M.commands[k] = v
+--         end
+--     end
+--     if M.opts.extensions then
+--         for k, v in pairs(M.opts.extensions) do
+--             M.extensions[k] = v
+--         end
+--     end
+
+--     M.last_loaded_json = nil
+--     M.load_json()
+
+--     M.opts.interrupt_keymap = M.opts.interrupt_keymap or '<F2>'
+--     local modes = { 'n', 'i', 'v', 't' }
+--     for _, mode in ipairs(modes) do
+--         vim.api.nvim_set_keymap(mode, M.opts.interrupt_keymap,
+--             "<Cmd>lua require('code-runner').send_interrupt()<CR>",
+--             { noremap = true, silent = true })
+--     end
+
+--     -- Start watching coderun.json
+--     M.start_watching_coderun_json()
+-- end
 function M.setup(opts)
     M.opts = opts or {}
     M.opts.keymap = M.opts.keymap or '<F5>'
@@ -406,7 +480,18 @@ function M.setup(opts)
     end
 
     M.last_loaded_json = nil
-    M.load_json()
+    
+    -- Delay the initial JSON loading
+    vim.api.nvim_create_autocmd("BufEnter", {
+        pattern = "*",
+        callback = function()
+            if not M.initial_load_done then
+                M.load_json()
+                M.initial_load_done = true
+            end
+        end,
+        once = true
+    })
 
     M.opts.interrupt_keymap = M.opts.interrupt_keymap or '<F2>'
     local modes = { 'n', 'i', 'v', 't' }
