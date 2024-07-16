@@ -311,6 +311,7 @@
 -- end
 
 -- return M
+
 local M = {}
 local uv = vim.loop
 local Popup = require("nui.popup")
@@ -453,7 +454,11 @@ function M.load_json()
 end
 
 function M.show_confirmation_popup(json_data, json_path, file_dir)
-    local popup = Popup({
+    if M.confirmation_popup then
+        M.confirmation_popup:unmount()
+    end
+
+    M.confirmation_popup = Popup({
         enter = true,
         focusable = true,
         border = {
@@ -463,11 +468,15 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
                 top_align = "center",
             },
         },
-        position = "50%",
+        position = {
+            row = "50%",
+            col = "50%",
+        },
         size = {
             width = "80%",
             height = "60%",
         },
+        relative = "editor",
     })
 
     local formatted_json = vim.fn.json_encode(json_data)
@@ -486,27 +495,30 @@ Do you want to use this configuration?
 Press 'y' to accept, 'n' to reject and use default configuration.
     ]], json_path, formatted_json)
 
-    popup:mount()
-    vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, vim.split(content, "\n"))
-    vim.api.nvim_buf_set_option(popup.bufnr, "modifiable", false)
+    M.confirmation_popup:mount()
+    vim.api.nvim_buf_set_lines(M.confirmation_popup.bufnr, 0, -1, false, vim.split(content, "\n"))
+    vim.api.nvim_buf_set_option(M.confirmation_popup.bufnr, "modifiable", false)
 
-    popup:map("n", "y", function()
-        popup:unmount()
+    M.confirmation_popup:map("n", "y", function()
+        M.confirmation_popup:unmount()
         M.coderun_json_dir = file_dir
         M.last_loaded_json = json_data
         M.bind_commands(json_data)
+        M.confirmation_popup = nil
     end, { noremap = true })
 
-    popup:map("n", "n", function()
-        popup:unmount()
+    M.confirmation_popup:map("n", "n", function()
+        M.confirmation_popup:unmount()
         M.coderun_json_dir = nil
         M.last_loaded_json = nil
         local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
         M.bind_commands(default_commands)
+        M.confirmation_popup = nil
     end, { noremap = true })
 
-    popup:on(event.BufLeave, function()
-        popup:unmount()
+    M.confirmation_popup:on(event.BufLeave, function()
+        M.confirmation_popup:unmount()
+        M.confirmation_popup = nil
     end)
 end
 
@@ -599,14 +611,6 @@ function M.setup(opts)
     M.last_loaded_json = nil
     M.load_json()
 
-    vim.api.nvim_exec([[
-        augroup CodeRunner
-            autocmd!
-            autocmd BufEnter * lua require('code-runner').handle_buffer_enter()
-            autocmd BufLeave * lua require('code-runner').handle_buffer_exit()
-        augroup END
-    ]], false)
-
     M.opts.interrupt_keymap = M.opts.interrupt_keymap or '<F2>'
     local modes = { 'n', 'i', 'v', 't' }
     for _, mode in ipairs(modes) do
@@ -631,27 +635,14 @@ function M.start_watching_coderun_json()
                 M.last_modified_time = stat.mtime.sec
                 M.load_json()
             end
+        elseif M.last_loaded_json then
+            -- Reset to default if JSON file is removed
+            M.coderun_json_dir = nil
+            M.last_loaded_json = nil
+            local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
+            M.bind_commands(default_commands)
         end
     end))
-end
-
-function M.handle_buffer_enter()
-    local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
-    if buftype ~= 'terminal' and buftype ~= 'nofile' and buftype == '' then
-        M.load_json()
-    end
-end
-
-function M.handle_buffer_exit()
-    local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
-    if buftype == 'nofile' or buftype == "" then
-        if M.coderun_json then
-            M.unbind_commands(M.coderun_json)
-        else
-            local file_extension = vim.fn.expand("%:e")
-            M.unbind_commands(M.generate_commands_table(file_extension))
-        end
-    end
 end
 
 return M
