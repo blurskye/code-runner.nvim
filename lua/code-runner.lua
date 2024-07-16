@@ -441,37 +441,46 @@ function M.load_json()
     local file_dir = vim.fn.fnamemodify(file_path, ":h")
     local root_dir = "/"
 
-    local function process_json(content, json_path)
-        local success, data = pcall(vim.fn.json_decode, content)
-        if success and type(data) == "table" then
-            M.show_confirmation_popup(data, json_path, file_dir)
-            return nil -- We'll return nil here and handle the data in the callback
-        end
-        return nil
-    end
+    local function find_json()
+        while file_dir ~= root_dir do
+            local json_path = file_dir .. "/coderun.json"
+            local file = io.open(json_path, "r")
 
-    while file_dir ~= root_dir do
-        local json_path = file_dir .. "/coderun.json"
-        local file = io.open(json_path, "r")
-
-        if file then
-            local content = file:read("*all")
-            file:close()
-            local data = process_json(content, json_path)
-            if data then
-                return data
+            if file then
+                local content = file:read("*all")
+                file:close()
+                local success, data = pcall(vim.fn.json_decode, content)
+                if success and type(data) == "table" then
+                    return data, json_path, file_dir
+                end
             end
-        end
 
-        local parent_dir = vim.fn.fnamemodify(file_dir, ":h")
-        if parent_dir == file_dir then
-            M.coderun_json_dir = nil
-            break
+            local parent_dir = vim.fn.fnamemodify(file_dir, ":h")
+            if parent_dir == file_dir then
+                break
+            end
+            file_dir = parent_dir
         end
-        file_dir = parent_dir
+        return nil, nil, nil
     end
 
-    return nil
+    local json_data, json_path, json_dir = find_json()
+    
+    if json_data then
+        if vim.deep_equal(json_data, M.last_loaded_json) then
+            -- JSON hasn't changed, use the existing configuration
+            M.coderun_json_dir = json_dir
+            M.bind_commands(json_data)
+        else
+            -- JSON has changed or is newly loaded, show confirmation popup
+            M.show_confirmation_popup(json_data, json_path, json_dir)
+        end
+    else
+        -- No JSON found, use default configuration
+        M.coderun_json_dir = nil
+        local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
+        M.bind_commands(default_commands)
+    end
 end
 
 function M.show_confirmation_popup(json_data, json_path, file_dir)
@@ -515,12 +524,14 @@ Press 'y' to accept, 'n' to reject and use default configuration.
     popup:map("n", "y", function()
         popup:unmount()
         M.coderun_json_dir = file_dir
+        M.last_loaded_json = json_data
         M.bind_commands(json_data)
     end, { noremap = true })
 
     popup:map("n", "n", function()
         popup:unmount()
         M.coderun_json_dir = nil
+        M.last_loaded_json = nil
         local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
         M.bind_commands(default_commands)
     end, { noremap = true })
@@ -616,13 +627,8 @@ function M.setup(opts)
         end
     end
 
-    M.coderun_json = M.load_json()
-    if M.coderun_json then
-        M.bind_commands(M.coderun_json)
-    else
-        M.coderun_json = M.generate_commands_table(vim.fn.expand("%:e"))
-        M.bind_commands(M.coderun_json)
-    end
+    M.last_loaded_json = nil
+    M.load_json()
 
     vim.api.nvim_exec([[
         augroup CodeRunner
@@ -644,13 +650,7 @@ end
 function M.handle_buffer_enter()
     local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
     if buftype ~= 'terminal' and buftype ~= 'nofile' and buftype == '' then
-        M.coderun_json = M.load_json()
-        if M.coderun_json then
-            M.bind_commands(M.coderun_json)
-        else
-            M.coderun_json = M.generate_commands_table(vim.fn.expand("%:e"))
-            M.bind_commands(M.coderun_json)
-        end
+        M.load_json()
     end
 end
 
