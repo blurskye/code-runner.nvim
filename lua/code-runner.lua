@@ -230,8 +230,8 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
             height = "60%",
         },
         buf_options = {
-            modifiable = false,
-            readonly = true,
+            modifiable = true,
+            readonly = false,
         },
     })
 
@@ -265,10 +265,13 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
         table.insert(lines, Line({ Text("Press 'y' to accept, 'n' to reject and use default configuration.", "WarningMsg") }))
         table.insert(lines, Line({ Text("Press 'j' to toggle between formatted view and JSON view.", "WarningMsg") }))
 
-        M.confirmation_popup.buffer:set_lines(0, -1, false, {})
+        local bufnr = M.confirmation_popup.bufnr
+        vim.api.nvim_buf_set_option(bufnr, "modifiable", true)
+        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {})
         for _, line in ipairs(lines) do
-            line:render(M.confirmation_popup.buffer, -1, -1)
+            line:render(bufnr, -1, -1)
         end
+        vim.api.nvim_buf_set_option(bufnr, "modifiable", false)
     end
 
     M.confirmation_popup:mount()
