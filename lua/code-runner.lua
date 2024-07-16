@@ -232,16 +232,18 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
         buf_options = {
             modifiable = true,
             readonly = false,
-            filetype = "json",
+            filetype = "markdown",
         },
     })
 
     local function set_content()
         local lines = {}
         table.insert(lines, "A coderun.json file has been found at:")
-        table.insert(lines, json_path)
+        table.insert(lines, "`" .. json_path .. "`")
         table.insert(lines, "")
         table.insert(lines, "Contents:")
+        table.insert(lines, "")
+        table.insert(lines, "```json")
         
         -- Read and format JSON content
         local json_content = vim.fn.readfile(json_path)
@@ -249,26 +251,13 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
             table.insert(lines, line)
         end
         
+        table.insert(lines, "```")
         table.insert(lines, "")
         table.insert(lines, "Do you want to use this configuration?")
         table.insert(lines, "Press 'y' to accept, 'n' to reject and use default configuration.")
 
         local bufnr = M.confirmation_popup.bufnr
         vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-        
-        -- Apply syntax highlighting
-        vim.api.nvim_buf_add_highlight(bufnr, -1, "Title", 0, 0, -1)
-        vim.api.nvim_buf_add_highlight(bufnr, -1, "Comment", 1, 0, -1)
-        vim.api.nvim_buf_add_highlight(bufnr, -1, "Title", 3, 0, -1)
-        
-        local json_start = 4
-        local json_end = #lines - 3
-        for i = json_start, json_end do
-            vim.api.nvim_buf_add_highlight(bufnr, -1, "Normal", i, 0, -1)
-        end
-        
-        vim.api.nvim_buf_add_highlight(bufnr, -1, "Question", #lines - 2, 0, -1)
-        vim.api.nvim_buf_add_highlight(bufnr, -1, "WarningMsg", #lines - 1, 0, -1)
     end
 
     M.confirmation_popup:mount()
