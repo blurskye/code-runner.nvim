@@ -1,13 +1,15 @@
 local M = {}
+local uv = vim.loop
+local Popup = require("nui.popup")
+local event = require("nui.utils.autocmd").event
 
 function M.unbind_commands(json_data)
     local modes = { 'n', 'i', 'v', 't' }
 
-    if (json_data) then
+    if json_data and type(json_data) == "table" then
         for _, v in pairs(json_data) do
             if v.command and v.keybind then
                 for _, mode in ipairs(modes) do
-                    -- Unbind the keymap in all modes
                     vim.api.nvim_set_keymap(mode, v.keybind, '', { noremap = true, silent = true })
                 end
             end
@@ -16,98 +18,49 @@ function M.unbind_commands(json_data)
 end
 
 function M.adjust_command_path()
-    if M.coderun_json_dir then
-        return M.coderun_json_dir
-    end
-
-    return vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h") -- Default to current dir
+    return M.coderun_json_dir or vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h")
 end
 
 local function keybind_exists(keybind)
-    local modes = { 'n', 'i', 'v', 't' }
-    for _, mode in ipairs(modes) do
-        local keymaps = vim.api.nvim_get_keymap(mode)
-        for _, map in pairs(keymaps) do
-            if map.lhs == keybind then
-                return true
-            end
+    local keymaps = vim.api.nvim_get_keymap('n')
+    for _, map in pairs(keymaps) do
+        if map.lhs == keybind then
+            return true
         end
     end
     return false
 end
 
 function M.send_interrupt()
-    if M.interupting then
+    if M.interrupting then
         return
     end
-    M.interupting = true
+    M.interrupting = true
     local current_win = vim.api.nvim_get_current_win()
     local current_mode = vim.api.nvim_get_mode().mode
-    -- Check if the current buffer is a terminal
-    local buf_type = vim.api.nvim_buf_get_option(vim.api.nvim_get_current_buf(), 'buftype')
-    local terminal_win = nil
-    if buf_type == 'terminal' then
-        terminal_win = vim.api.nvim_get_current_win()
-    else
-        -- Get a list of all open windows
-        local windows = vim.api.nvim_list_wins()
-        for _, win in ipairs(windows) do
-            -- Check if the window's buffer is a terminal
-            local buf = vim.api.nvim_win_get_buf(win)
-            if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
-                terminal_win = win
-                break
-            end
-        end
-        if not terminal_win then
-            -- Open a new terminal if no terminal buffer was found
-            vim.api.nvim_exec(M.toggle_term_command, false)
-
-
-            local windows = vim.api.nvim_list_wins()
-            for _, win in ipairs(windows) do
-                -- Check if the window's buffer is a terminal
-                local buf = vim.api.nvim_win_get_buf(win)
-                if vim.api.nvim_buf_get_option(buf, 'buftype') == 'terminal' then
-                    terminal_win = win
-                    break
-                end
-            end
-        end
-    end
-    if terminal_win then
-        vim.api.nvim_set_current_win(terminal_win)
+    
+    require('sky-term').toggle_term_wrapper()
+    vim.defer_fn(function()
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
         vim.defer_fn(function()
-            -- Send Ctrl+C to the terminal buffer
-            vim.api.nvim_exec('startinsert', false)
-            vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
-            vim.defer_fn(function()
-                -- Switch back to the original window
-                if (M.toggle_term_command == "ToggleSkyTerm") then
-                    vim.api.nvim_command("ToggleSkyTerm")
-                else
-                    vim.api.nvim_set_current_win(current_win)
-                end
-                if current_mode:sub(1, 1) == 'i' then
-                    vim.defer_fn(function()
-                        vim.api.nvim_exec('startinsert', false)
-                        M.interupting = false
-                    end, 50)
-                else
-                    M.interupting = false
-                end
-            end, 50)
-        end, 100)
-    end
+            require('sky-term').toggle_term_wrapper()
+            if current_mode:sub(1, 1) == 'i' then
+                vim.defer_fn(function()
+                    vim.cmd('startinsert')
+                    M.interrupting = false
+                end, 50)
+            else
+                M.interrupting = false
+            end
+        end, 50)
+    end, 100)
 end
 
 function M.bind_commands(json_data)
-    if (json_data) then
+    if json_data and type(json_data) == "table" then
         for _, v in pairs(json_data) do
             if v.command and v.keybind then
                 local file_buffer = vim.api.nvim_buf_get_name(0)
-
-                -- local file_path = '"' .. file_buffer .. '"'
                 local file_path = '"' .. M.adjust_command_path() .. '"'
                 local file_dir = '"' .. vim.fn.fnamemodify(file_buffer, ":h") .. '"'
                 local file_name = '"' .. vim.fn.fnamemodify(file_buffer, ":t") .. '"'
@@ -115,106 +68,172 @@ function M.bind_commands(json_data)
                 local file_extension = '"' .. vim.fn.fnamemodify(file_buffer, ":e") .. '"'
 
                 local cmd = v.command
-                cmd = cmd:gsub("$dir", file_path)
-                cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
-                cmd = cmd:gsub("$fileName", file_name)
-                cmd = cmd:gsub("$fileExtension", file_extension)
-                cmd = cmd:gsub("$filePath", file_path)
+                    :gsub("$dir", file_dir)
+                    :gsub("$fileNameWithoutExt", file_name_without_ext)
+                    :gsub("$fileName", file_name)
+                    :gsub("$fileExtension", file_extension)
+                    :gsub("$filePath", file_path)
 
                 local modes = { 'n', 'i', 'v', 't' }
                 for _, mode in ipairs(modes) do
-                    vim.api.nvim_set_keymap(mode, v.keybind,
-                        "<Cmd>lua require('code-runner').run_command('" ..
-                        cmd .. "')<CR>",
-                        { noremap = true, silent = true })
+                    if string.sub(v.command, 1, 1) == ":" then
+                        vim.api.nvim_set_keymap(mode, v.keybind,
+                            "<Cmd>" .. string.sub(v.command, 2) .. "<CR>",
+                            { noremap = true, silent = true })
+                    elseif string.match(v.command, "`%${(.-)}%`") then
+                        vim.api.nvim_set_keymap(mode, v.keybind,
+                            "<Cmd>lua require('code-runner').complete_variables_in_commands('" .. cmd .. "')<CR>",
+                            { noremap = true, silent = true })
+                    else
+                        vim.api.nvim_set_keymap(mode, v.keybind,
+                            "<Cmd>lua require('sky-term').send_to_term('" .. cmd .. "')<CR>",
+                            { noremap = true, silent = true })
+                    end
                 end
             end
         end
     end
 end
 
-function M.load_json()
-    local bufnr = vim.api.nvim_win_get_buf(0)
+function M.find_coderun_json_path()
+    local bufnr = vim.api.nvim_get_current_buf()
     local file_path = vim.api.nvim_buf_get_name(bufnr)
     local file_dir = vim.fn.fnamemodify(file_path, ":h")
     local root_dir = "/"
 
     while file_dir ~= root_dir do
         local json_path = file_dir .. "/coderun.json"
-        local file = io.open(json_path, "r")
-
-        if file then
-            local content = file:read("*all")
-            file:close()
-
-            local data = vim.fn.json_decode(content)
-            M.coderun_json_dir = file_dir
-            return data
-        else
-            M.coderun_json_dir = nil
+        if vim.fn.filereadable(json_path) == 1 then
+            return json_path
         end
-
         local parent_dir = vim.fn.fnamemodify(file_dir, ":h")
-        if parent_dir == file_dir then -- We've reached the root directory
-            M.coderun_json_dir = nil
+        if parent_dir == file_dir then
             break
         end
         file_dir = parent_dir
     end
-
     return nil
 end
 
--- function M.run_command(command)
---     local variables = {}
---     local cmd = command
---     local values = {} -- table to store the values of the variables
-
---     for var in string.gmatch(cmd, "`%${(.-)}%`") do
---         if not values[var] then                             -- if the value of the variable is not already stored
---             local value = vim.fn.input('Enter value for ' .. var .. ': ')
---             values[var] = value                             -- store the value of the variable
---         end
---         cmd = cmd:gsub("`%${" .. var .. "}%`", values[var]) -- replace with the stored value
---     end
---     vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
--- end
-function M.trim(s)
-    return (s:gsub("^%s*(.-)%s*$", "%1"))
+function M.load_json()
+    local json_path = M.find_coderun_json_path()
+    
+    if json_path then
+        local file = io.open(json_path, "r")
+        if file then
+            local content = file:read("*all")
+            file:close()
+            local success, json_data = pcall(vim.fn.json_decode, content)
+            if success and type(json_data) == "table" then
+                local json_dir = vim.fn.fnamemodify(json_path, ":h")
+                if not vim.deep_equal(json_data, M.last_loaded_json) then
+                    M.show_confirmation_popup(json_data, json_path, json_dir)
+                end
+            end
+        end
+    else
+        -- No JSON found, use default configuration
+        M.coderun_json_dir = nil
+        local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
+        M.bind_commands(default_commands)
+    end
 end
 
-function M.run_command(command)
-    if (M.running_command) then
-        return
+function M.show_confirmation_popup(json_data, json_path, file_dir)
+    if M.confirmation_popup then
+        M.confirmation_popup:unmount()
     end
-    M.running_command = true
-    local values = {} -- table to store the values of the variables
 
-    -- split the command by '&&'
-    for cmd in string.gmatch(command, '([^&&]+)') do
-        cmd = M.trim(cmd)           -- remove leading and trailing spaces
-        for var in string.gmatch(cmd, "`%${(.-)}%`") do
-            if not values[var] then -- if the value of the variable is not already stored
-                local value = vim.fn.input('Enter value for ' .. var .. ': ')
-                if value == '' then
-                    M.running_command = false
-                    return
-                end
-                values[var] = value                             -- store the value of the variable
-            end
-            cmd = cmd:gsub("`%${" .. var .. "}%`", values[var]) -- replace with the stored value
+    local width = math.floor(vim.o.columns * 0.8)
+    local height = math.floor(vim.o.lines * 0.8)
+
+    M.confirmation_popup = Popup({
+        enter = true,
+        focusable = true,
+        border = {
+            style = "rounded",
+            text = {
+                top = " Confirm coderun.json ",
+                top_align = "center",
+            },
+        },
+        position = "50%",
+        size = {
+            width = width,
+            height = height,
+        },
+        buf_options = {
+            modifiable = true,
+            readonly = false,
+        },
+    })
+
+    local formatted_json = vim.fn.json_encode(json_data)
+    formatted_json = vim.fn.substitute(formatted_json, '\\n', '\n', 'g')
+    formatted_json = vim.fn.substitute(formatted_json, '\\t', '\t', 'g')
+
+    local content = string.format([[
+# CodeRun Configuration
+
+A `coderun.json` file has been found at:
+`%s`
+
+## Contents:
+
+\`\`\`json
+%s
+\`\`\`
+
+## Confirmation
+
+Do you want to use this configuration?
+
+- Press `y` to accept
+- Press `n` to reject and use default configuration
+    ]], json_path, formatted_json)
+
+    M.confirmation_popup:mount()
+    vim.api.nvim_buf_set_lines(M.confirmation_popup.bufnr, 0, -1, false, vim.split(content, "\n"))
+    vim.api.nvim_buf_set_option(M.confirmation_popup.bufnr, "modifiable", false)
+
+    -- Set filetype to markdown for syntax highlighting
+    vim.api.nvim_buf_set_option(M.confirmation_popup.bufnr, "filetype", "markdown")
+
+    M.confirmation_popup:map("n", "y", function()
+        M.confirmation_popup:unmount()
+        M.coderun_json_dir = file_dir
+        M.last_loaded_json = json_data
+        M.bind_commands(json_data)
+        M.confirmation_popup = nil
+    end, { noremap = true })
+
+    M.confirmation_popup:map("n", "n", function()
+        M.confirmation_popup:unmount()
+        M.coderun_json_dir = nil
+        M.last_loaded_json = nil
+        local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
+        M.bind_commands(default_commands)
+        M.confirmation_popup = nil
+    end, { noremap = true })
+
+    M.confirmation_popup:on(event.BufLeave, function()
+        M.confirmation_popup:unmount()
+        M.confirmation_popup = nil
+    end)
+end
+
+function M.complete_variables_in_commands(command)
+    local cmd = command
+    local values = {}
+
+    for var in string.gmatch(cmd, "`%${(.-)}%`") do
+        if not values[var] then
+            local value = vim.fn.input('Enter value for ' .. var .. ': ')
+            values[var] = value
         end
-        if cmd:sub(1, 1) == ':' then
-            vim.api.nvim_command(cmd)
-        else
-            if (M.toggle_term_command == "ToggleSkyTerm") then
-                vim.api.nvim_command("SendToSkyTerm " .. cmd)
-            else
-                vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
-            end
-        end
+        cmd = cmd:gsub("`%${" .. var .. "}%`", values[var])
     end
-    M.running_command = false
+    require('sky-term').send_to_term(cmd)
 end
 
 M.commands = {
@@ -258,6 +277,7 @@ M.extensions = {
     pascal = { "pas" },
     nim = { "nim" }
 }
+
 function M.generate_commands_table(file_extension)
     local commands_table = {}
     for language, extensions in pairs(M.extensions) do
@@ -277,7 +297,6 @@ function M.setup(opts)
     M.opts = opts or {}
     M.opts.keymap = M.opts.keymap or '<F5>'
 
-    -- Overwrite the default commands and extensions with the user-provided commands
     if M.opts.commands then
         for k, v in pairs(M.opts.commands) do
             M.commands[k] = v
@@ -289,71 +308,41 @@ function M.setup(opts)
         end
     end
 
-    if M.opts.run_tmux ~= false then
-        vim.cmd("TermExec cmd='tmux new-session -A -s nvim'")
-        -- vim.cmd("ToggleTerm")
-        vim.cmd(M.toggle_term_command)
-    end
-    M.coderun_json = M.load_json()
-    if (M.coderun_json) then
-        M.bind_commands(M.coderun_json)
-    else
-        M.coderun_json = M.generate_commands_table(vim.fn.expand("%:e"))
-        M.bind_commands(M.coderun_json)
-    end
-    vim.api.nvim_exec([[
-            augroup CodeRunner
-                autocmd!
-                autocmd BufEnter * lua require('code-runner').handle_buffer_enter()
-                autocmd BufLeave * lua require('code-runner').handle_buffer_exit()
-                augroup END
-                ]], false)
+    M.last_loaded_json = nil
+    M.load_json()
+
     M.opts.interrupt_keymap = M.opts.interrupt_keymap or '<F2>'
     local modes = { 'n', 'i', 'v', 't' }
     for _, mode in ipairs(modes) do
-        vim.api.nvim_set_keymap(mode, M.opts.interrupt_keymap, "<Cmd>lua require('code-runner').send_interrupt()<CR>",
+        vim.api.nvim_set_keymap(mode, M.opts.interrupt_keymap,
+            "<Cmd>lua require('code-runner').send_interrupt()<CR>",
             { noremap = true, silent = true })
     end
-    local sky_term_module = pcall(require, 'sky-term')
 
-    if sky_term_module then
-        -- If the sky-term module is available, use the :ToggleSkyTerm command
-        M.toggle_term_command = 'ToggleSkyTerm'
-    else
-        -- If the sky-term module is not available, use the :ToggleTerm command
-        M.toggle_term_command = 'ToggleTerm'
-    end
-    vim.notify("toggle_term_command: " .. M.toggle_term_command)
+    -- Start watching coderun.json
+    M.start_watching_coderun_json()
 end
 
-function M.handle_buffer_enter()
-    local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
-    if buftype ~= 'terminal' and buftype ~= 'nofile' and buftype == '' then
-        M.coderun_json = M.load_json()
-        M.json_data = M.load_json()
-
-        if (M.coderun_json) then
-            M.bind_commands(M.coderun_json)
-        else
-            M.coderun_json = M.generate_commands_table(vim.fn.expand("%:e"))
-            M.bind_commands(M.coderun_json)
+function M.start_watching_coderun_json()
+    M.last_modified_time = 0
+    M.watch_timer = vim.loop.new_timer()
+    
+    M.watch_timer:start(0, 1000, vim.schedule_wrap(function()
+        local json_path = M.find_coderun_json_path()
+        if json_path then
+            local stat = vim.loop.fs_stat(json_path)
+            if stat and stat.mtime.sec > M.last_modified_time then
+                M.last_modified_time = stat.mtime.sec
+                M.load_json()
+            end
+        elseif M.last_loaded_json then
+            -- Reset to default if JSON file is removed
+            M.coderun_json_dir = nil
+            M.last_loaded_json = nil
+            local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
+            M.bind_commands(default_commands)
         end
-    end
-end
-
-function M.handle_buffer_exit()
-    local win_id = vim.api.nvim_get_current_win()
-    local buf_id = vim.api.nvim_win_get_buf(win_id)
-    local buftype = vim.api.nvim_buf_get_option(buf_id, 'buftype')
-    -- if buftype == 'nofile' or buftype == "" then
-    if buftype == 'nofile' then
-        if M.coderun_json then
-            M.unbind_commands(M.coderun_json)
-        else
-            local file_extension = vim.fn.expand("%:e")
-            M.unbind_commands(M.generate_commands_table(file_extension))
-        end
-    end
+    end))
 end
 
 return M
