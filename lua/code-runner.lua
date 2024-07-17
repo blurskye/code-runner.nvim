@@ -833,6 +833,37 @@ function M.find_coderun_json_path()
     return nil
 end
 
+-- function M.load_json()
+--     local json_path = M.find_coderun_json_path()
+    
+--     if json_path then
+--         local file = io.open(json_path, "r")
+--         if file then
+--             local content = file:read("*all")
+--             file:close()
+--             local success, json_data = pcall(vim.fn.json_decode, content)
+--             if success and type(json_data) == "table" then
+--                 local json_dir = vim.fn.fnamemodify(json_path, ":h")
+--                 if not vim.deep_equal(json_data, M.last_loaded_json) then
+--                     if M.opts.show_confirmation_prompt then
+--                         M.show_confirmation_popup(json_data, json_path, json_dir)
+--                     else
+--                         M.apply_json_config(json_data, json_dir)
+--                     end
+--                     return
+--                 end
+--             else
+--                 vim.notify("Error decoding coderun.json, using default configuration.", vim.log.levels.ERROR)
+--             end
+--         else
+--             vim.notify("Error reading coderun.json, using default configuration.", vim.log.levels.ERROR)
+--         end
+--     else
+--         if M.last_loaded_json then
+--             M.apply_default_config()
+--         end
+--     end
+-- end
 function M.load_json()
     local json_path = M.find_coderun_json_path()
     
@@ -844,13 +875,18 @@ function M.load_json()
             local success, json_data = pcall(vim.fn.json_decode, content)
             if success and type(json_data) == "table" then
                 local json_dir = vim.fn.fnamemodify(json_path, ":h")
-                if not vim.deep_equal(json_data, M.last_loaded_json) then
-                    if M.opts.show_confirmation_prompt then
-                        M.show_confirmation_popup(json_data, json_path, json_dir)
-                    else
-                        M.apply_json_config(json_data, json_dir)
+                local stat = vim.loop.fs_stat(json_path)
+                
+                if stat and stat.mtime.sec > M.last_modified_time then
+                    M.last_modified_time = stat.mtime.sec
+                    
+                    if not vim.deep_equal(json_data, M.last_loaded_json) then
+                        if M.opts.show_confirmation_prompt then
+                            M.show_confirmation_popup(json_data, json_path, json_dir)
+                        else
+                            M.apply_json_config(json_data, json_dir)
+                        end
                     end
-                    return
                 end
             else
                 vim.notify("Error decoding coderun.json, using default configuration.", vim.log.levels.ERROR)
@@ -864,7 +900,6 @@ function M.load_json()
         end
     end
 end
-
 function M.apply_json_config(json_data, json_dir)
     M.coderun_json_dir = json_dir
     M.last_loaded_json = json_data
@@ -1089,6 +1124,13 @@ function M.setup(opts)
     ]], false)
 end
 
+-- function M.start_watching_coderun_json()
+--     M.watch_timer = vim.loop.new_timer()
+    
+--     M.watch_timer:start(0, 1000, vim.schedule_wrap(function()
+--         M.load_json()
+--     end))
+-- end
 function M.start_watching_coderun_json()
     M.watch_timer = vim.loop.new_timer()
     
