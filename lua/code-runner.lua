@@ -403,51 +403,40 @@ end
 --     end
 -- end
 function M.handle_buffer_enter()
-	local buf_id = vim.api.nvim_get_current_buf()
-	-- local buftype = vim.api.nvim_buf_get_option(buf_id, "buftype")
-
-	-- local buftype = vim.api.nvim_buf_get_option(0, "buftype")
-	--
-
 	local buftype = tostring(vim.bo.buftype)
-	print("entering buff type is " .. vim.bo.buftype)
 
-	-- Load and bind commands for non-terminal buffers
-	-- if buftype ~= 'terminal' then
-	if buftype ~= "terminal" and (buftype == "nofile" or buftype == "") then
-		M.coderun_json = M.load_json()
-		if M.coderun_json then
-			M.unbind_commands(M.coderun_json)
-		else
-			local file_extension = vim.fn.expand("%:e")
-			M.unbind_commands(M.generate_commands_table(file_extension))
-		end
-		if M.coderun_json then
-			M.bind_commands(M.coderun_json)
-		else
-			local file_extension = vim.fn.expand("%:e")
-			M.coderun_json = M.generate_commands_table(file_extension)
-			M.bind_commands(M.coderun_json)
-		end
-	end
+
+    print("Entering buffer type: " .. buftype)
+
+    -- Load and bind commands for non-terminal buffers
+    if buftype ~= "terminal" then
+        M.coderun_json = M.load_json()
+        if M.coderun_json then
+            M.bind_commands(M.coderun_json)
+        else
+            local file_extension = vim.fn.expand("%:e")
+            M.coderun_json = M.generate_commands_table(file_extension)
+            M.bind_commands(M.coderun_json)
+        end
+    end
 end
 
 function M.handle_buffer_exit()
-	-- local buf_id = vim.api.nvim_get_current_buf()
-	-- local buftype = vim.api.nvim_buf_get_option(buf_id, "buftype")
-	-- local buftype = vim.api.nvim_buf_get_option(0, "buftype")
 	local buftype = tostring(vim.bo.buftype)
-	print("exiting buff type is  " .. vim.bo.buftype)
-	-- Unbind commands only when leaving non-terminal buffers
-	-- if buftype ~= 'terminal' then
-	-- if (buftype == "nofile" or buftype == "") and buftype ~= "terminal" then
-	-- 	if M.coderun_json then
-	-- 		M.unbind_commands(M.coderun_json)
-	-- 	else
-	-- 		local file_extension = vim.fn.expand("%:e")
-	-- 		M.unbind_commands(M.generate_commands_table(file_extension))
-	-- 	end
-	-- end
+
+
+    print("Exiting buffer type: " .. buftype)
+
+    -- Unbind commands only when leaving non-terminal buffers
+    if buftype ~= "terminal" then
+        if M.coderun_json then
+            M.unbind_commands(M.coderun_json)
+        else
+            local file_extension = vim.fn.expand("%:e")
+            M.unbind_commands(M.generate_commands_table(file_extension))
+        end
+    end
+end
 end
 
 return M
