@@ -383,7 +383,9 @@ function M.handle_buffer_enter()
     local buftype = vim.api.nvim_buf_get_option(buf_id, 'buftype')
     
     -- Load and bind commands for non-terminal buffers
-    if buftype ~= 'terminal' then
+    -- if buftype ~= 'terminal' then
+    if buftype ~= "terminal" and (buftype == "nofile" or buftype == "") then
+
         M.coderun_json = M.load_json()
         if M.coderun_json then
             M.bind_commands(M.coderun_json)
@@ -400,7 +402,9 @@ function M.handle_buffer_exit()
     local buftype = vim.api.nvim_buf_get_option(buf_id, 'buftype')
     
     -- Unbind commands only when leaving non-terminal buffers
-    if buftype ~= 'terminal' then
+    -- if buftype ~= 'terminal' then
+    if (buftype == "nofile" or buftype == "") and buftype ~= "terminal" then
+
         if M.coderun_json then
             M.unbind_commands(M.coderun_json)
         else
