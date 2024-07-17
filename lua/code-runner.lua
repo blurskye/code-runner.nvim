@@ -257,10 +257,14 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
 
     local function set_content()
         local lines = {}
-        table.insert(lines, "A coderun.json file has been found at:")
-        table.insert(lines, json_path)
+        table.insert(lines, "# CodeRun Configuration")
         table.insert(lines, "")
-        table.insert(lines, "Contents:")
+        table.insert(lines, "A `coderun.json` file has been found at:")
+        table.insert(lines, "```")
+        table.insert(lines, json_path)
+        table.insert(lines, "```")
+        table.insert(lines, "")
+        table.insert(lines, "## Contents:")
         table.insert(lines, "")
         
         -- Read and format JSON content
@@ -272,8 +276,12 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
         table.insert(lines, "```")
         
         table.insert(lines, "")
+        table.insert(lines, "## Confirmation")
+        table.insert(lines, "")
         table.insert(lines, "Do you want to use this configuration?")
-        table.insert(lines, "Press 'y' to accept, 'n' to reject and use default configuration.")
+        table.insert(lines, "")
+        table.insert(lines, "- Press `y` to accept")
+        table.insert(lines, "- Press `n` to reject and use default configuration")
 
         local bufnr = M.confirmation_popup.bufnr
         vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
@@ -307,7 +315,6 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
         M.confirmation_popup = nil
     end)
 end
-
 function M.complete_variables_in_commands(command)
     local cmd = command
     local values = {}
