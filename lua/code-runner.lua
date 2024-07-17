@@ -433,7 +433,7 @@ function M.handle_buffer_exit()
 	print("exiting buff type is  " .. vim.bo.buftype)
 	-- Unbind commands only when leaving non-terminal buffers
 	-- if buftype ~= 'terminal' then
-	if buftype ~= "terminal" then
+	if buftype == "" then
 		if M.coderun_json then
 			M.unbind_commands(M.coderun_json)
 		else
