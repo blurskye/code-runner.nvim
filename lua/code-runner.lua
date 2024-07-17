@@ -406,8 +406,10 @@ function M.handle_buffer_enter()
 	local buf_id = vim.api.nvim_get_current_buf()
 	-- local buftype = vim.api.nvim_buf_get_option(buf_id, "buftype")
 
-	local buftype = vim.api.nvim_buf_get_option(0, "buftype")
+	-- local buftype = vim.api.nvim_buf_get_option(0, "buftype")
+	--
 
+	local buftype = tostring(vim.bo.buftype)
 	print("entering buff type is " .. vim.bo.buftype)
 	-- Load and bind commands for non-terminal buffers
 	-- if buftype ~= 'terminal' then
@@ -426,7 +428,8 @@ end
 function M.handle_buffer_exit()
 	local buf_id = vim.api.nvim_get_current_buf()
 	-- local buftype = vim.api.nvim_buf_get_option(buf_id, "buftype")
-	local buftype = vim.api.nvim_buf_get_option(0, "buftype")
+	-- local buftype = vim.api.nvim_buf_get_option(0, "buftype")
+	local buftype = tostring(vim.bo.buftype)
 	print("exiting buff type is  " .. vim.bo.buftype)
 	-- Unbind commands only when leaving non-terminal buffers
 	-- if buftype ~= 'terminal' then
