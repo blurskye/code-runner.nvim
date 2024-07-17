@@ -375,39 +375,11 @@ function M.initialize()
 	vim.notify("toggle_term_command: " .. M.toggle_term_command)
 end
 
--- function M.handle_buffer_enter()
---     local buf_id = vim.api.nvim_win_get_buf(vim.api.nvim_get_current_win())
 
---     local buftype = vim.api.nvim_buf_get_option(buf_id, 'buftype')
---     if buftype ~= 'terminal' and (buftype == 'nofile' or buftype == '') then
---         M.coderun_json = M.load_json()
---         M.json_data = M.load_json()
-
---         if (M.coderun_json) then
---             M.bind_commands(M.coderun_json)
---         else
---             M.coderun_json = M.generate_commands_table(vim.fn.expand("%:e"))
---             M.bind_commands(M.coderun_json)
---         end
---     end
--- end
--- function M.handle_buffer_exit()
---     local buf_id = vim.api.nvim_win_get_buf(vim.api.nvim_get_current_win())
-
---     local buftype = vim.api.nvim_buf_get_option(buf_id, 'buftype')
---     if (buftype == 'nofile' or buftype == "") and buftype ~= "terminal" then
---         if M.coderun_json then
---             M.unbind_commands(M.coderun_json)
---         else
---             local file_extension = vim.fn.expand("%:e")
---             M.unbind_commands(M.generate_commands_table(file_extension))
---         end
---     end
--- end
 function M.handle_buffer_enter()
 	local buftype = tostring(vim.bo.buftype)
 	M.entering_buffer_type = buftype
-	print("Entering buffer type: " .. buftype)
+	-- print("Entering buffer type: " .. buftype)
 
 	-- Load and bind commands for non-terminal buffers
 	-- if buftype ~= "terminal" then
@@ -441,7 +413,7 @@ end
 function M.handle_buffer_exit()
 	local buftype = tostring(vim.bo.buftype)
 	M.exiting_buffer_type = buftype
-	print("Exiting buffer type: " .. buftype)
+	-- print("Exiting buffer type: " .. buftype)
 
 	-- Unbind commands only when leaving non-terminal buffers
 	-- if buftype ~= "" then
