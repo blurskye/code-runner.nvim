@@ -437,6 +437,5 @@ function M.handle_buffer_exit()
         end
     end
 end
-end
 
 return M
