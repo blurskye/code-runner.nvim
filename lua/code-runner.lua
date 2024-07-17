@@ -180,9 +180,9 @@ A `coderun.json` file has been found at:
 
 ## Contents:
 
-\`\`\`json
+```json
 %s
-\`\`\`
+```
 
 ## Confirmation
 
