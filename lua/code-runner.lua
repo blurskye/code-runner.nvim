@@ -265,9 +265,11 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
         
         -- Read and format JSON content
         local json_content = vim.fn.readfile(json_path)
+        table.insert(lines, "```json")
         for _, line in ipairs(json_content) do
             table.insert(lines, line)
         end
+        table.insert(lines, "```")
         
         table.insert(lines, "")
         table.insert(lines, "Do you want to use this configuration?")
@@ -275,6 +277,9 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
 
         local bufnr = M.confirmation_popup.bufnr
         vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+        
+        -- Set filetype to markdown for syntax highlighting
+        vim.api.nvim_buf_set_option(bufnr, "filetype", "markdown")
     end
 
     M.confirmation_popup:mount()
@@ -302,7 +307,6 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
         M.confirmation_popup = nil
     end)
 end
-
 
 function M.complete_variables_in_commands(command)
     local cmd = command
