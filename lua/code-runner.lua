@@ -169,6 +169,8 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
     })
 
     local formatted_json = vim.fn.json_encode(json_data)
+    local json_encoded = vim.fn.json_encode(json_data)
+
     formatted_json = vim.fn.substitute(formatted_json, '\\n', '\n', 'g')
     formatted_json = vim.fn.substitute(formatted_json, '\\t', '\t', 'g')
 
@@ -190,7 +192,7 @@ Do you want to use this configuration?
 
 - Press `y` to accept
 - Press `n` to reject and use default configuration
-    ]], json_path, formatted_json)
+    ]], json_path, json_encoded)
 
     M.confirmation_popup:mount()
     vim.api.nvim_buf_set_lines(M.confirmation_popup.bufnr, 0, -1, false, vim.split(content, "\n"))
