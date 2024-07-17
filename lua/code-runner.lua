@@ -192,7 +192,7 @@ Do you want to use this configuration?
 
 - Press `y` to accept
 - Press `n` to reject and use default configuration
-    ]], json_path, json_encoded)
+    ]], json_path, json_data)
 
     M.confirmation_popup:mount()
     vim.api.nvim_buf_set_lines(M.confirmation_popup.bufnr, 0, -1, false, vim.split(content, "\n"))
