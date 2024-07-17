@@ -139,6 +139,90 @@ function M.load_json()
     end
 end
 
+-- function M.show_confirmation_popup(json_data, json_path, file_dir)
+--     if M.confirmation_popup then
+--         M.confirmation_popup:unmount()
+--     end
+
+--     local width = math.floor(vim.o.columns * 0.8)
+--     local height = math.floor(vim.o.lines * 0.8)
+
+--     M.confirmation_popup = Popup({
+--         enter = true,
+--         focusable = true,
+--         border = {
+--             style = "rounded",
+--             text = {
+--                 top = " Confirm coderun.json ",
+--                 top_align = "center",
+--             },
+--         },
+--         position = "50%",
+--         size = {
+--             width = width,
+--             height = height,
+--         },
+--         buf_options = {
+--             modifiable = true,
+--             readonly = false,
+--         },
+--     })
+
+--     local formatted_json = vim.fn.json_encode(json_data)
+--     local json_encoded = vim.fn.json_encode(json_data)
+
+--     formatted_json = vim.fn.substitute(formatted_json, '\\n', '\n', 'g')
+--     formatted_json = vim.fn.substitute(formatted_json, '\\t', '\t', 'g')
+
+--     local content = string.format([[
+-- # CodeRun Configuration
+
+-- A `coderun.json` file has been found at:
+-- `%s`
+
+-- ## Contents:
+
+-- ```json
+-- %s
+-- ```
+
+-- ## Confirmation
+
+-- Do you want to use this configuration?
+
+-- - Press `y` to accept
+-- - Press `n` to reject and use default configuration
+--     ]], json_path, json_data)
+
+--     M.confirmation_popup:mount()
+--     vim.api.nvim_buf_set_lines(M.confirmation_popup.bufnr, 0, -1, false, vim.split(content, "\n"))
+--     vim.api.nvim_buf_set_option(M.confirmation_popup.bufnr, "modifiable", false)
+
+--     -- Set filetype to markdown for syntax highlighting
+--     vim.api.nvim_buf_set_option(M.confirmation_popup.bufnr, "filetype", "markdown")
+
+--     M.confirmation_popup:map("n", "y", function()
+--         M.confirmation_popup:unmount()
+--         M.coderun_json_dir = file_dir
+--         M.last_loaded_json = json_data
+--         M.bind_commands(json_data)
+--         M.confirmation_popup = nil
+--     end, { noremap = true })
+
+--     M.confirmation_popup:map("n", "n", function()
+--         M.confirmation_popup:unmount()
+--         M.coderun_json_dir = nil
+--         M.last_loaded_json = nil
+--         local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
+--         M.bind_commands(default_commands)
+--         M.confirmation_popup = nil
+--     end, { noremap = true })
+
+--     M.confirmation_popup:on(event.BufLeave, function()
+--         M.confirmation_popup:unmount()
+--         M.confirmation_popup = nil
+--     end)
+-- end
 function M.show_confirmation_popup(json_data, json_path, file_dir)
     if M.confirmation_popup then
         M.confirmation_popup:unmount()
@@ -157,7 +241,10 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
                 top_align = "center",
             },
         },
-        position = "50%",
+        position = {
+            row = math.floor((vim.o.lines - height) / 2),
+            col = math.floor((vim.o.columns - width) / 2),
+        },
         size = {
             width = width,
             height = height,
@@ -168,38 +255,30 @@ function M.show_confirmation_popup(json_data, json_path, file_dir)
         },
     })
 
-    local formatted_json = vim.fn.json_encode(json_data)
-    local json_encoded = vim.fn.json_encode(json_data)
+    local function set_content()
+        local lines = {}
+        table.insert(lines, "A coderun.json file has been found at:")
+        table.insert(lines, json_path)
+        table.insert(lines, "")
+        table.insert(lines, "Contents:")
+        table.insert(lines, "")
+        
+        -- Read and format JSON content
+        local json_content = vim.fn.readfile(json_path)
+        for _, line in ipairs(json_content) do
+            table.insert(lines, line)
+        end
+        
+        table.insert(lines, "")
+        table.insert(lines, "Do you want to use this configuration?")
+        table.insert(lines, "Press 'y' to accept, 'n' to reject and use default configuration.")
 
-    formatted_json = vim.fn.substitute(formatted_json, '\\n', '\n', 'g')
-    formatted_json = vim.fn.substitute(formatted_json, '\\t', '\t', 'g')
-
-    local content = string.format([[
-# CodeRun Configuration
-
-A `coderun.json` file has been found at:
-`%s`
-
-## Contents:
-
-```json
-%s
-```
-
-## Confirmation
-
-Do you want to use this configuration?
-
-- Press `y` to accept
-- Press `n` to reject and use default configuration
-    ]], json_path, json_data)
+        local bufnr = M.confirmation_popup.bufnr
+        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+    end
 
     M.confirmation_popup:mount()
-    vim.api.nvim_buf_set_lines(M.confirmation_popup.bufnr, 0, -1, false, vim.split(content, "\n"))
-    vim.api.nvim_buf_set_option(M.confirmation_popup.bufnr, "modifiable", false)
-
-    -- Set filetype to markdown for syntax highlighting
-    vim.api.nvim_buf_set_option(M.confirmation_popup.bufnr, "filetype", "markdown")
+    set_content()
 
     M.confirmation_popup:map("n", "y", function()
         M.confirmation_popup:unmount()
@@ -223,6 +302,7 @@ Do you want to use this configuration?
         M.confirmation_popup = nil
     end)
 end
+
 
 function M.complete_variables_in_commands(command)
     local cmd = command
