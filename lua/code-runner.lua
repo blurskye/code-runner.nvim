@@ -157,13 +157,12 @@ end
 
 function M.load_json()
     local win_id = vim.api.nvim_get_current_win()
-    if win_id == nil then
+    if win_id == 0 then
         return nil
     end
 
     local buf_id = vim.api.nvim_win_get_buf(win_id)
-    local bufnr = vim.api.nvim_win_get_buf(buf_id)
-    local file_path = vim.api.nvim_buf_get_name(bufnr)
+    local file_path = vim.api.nvim_buf_get_name(buf_id)
     local file_dir = vim.fn.fnamemodify(file_path, ":h")
     local root_dir = "/"
     while file_dir ~= root_dir do
@@ -306,22 +305,8 @@ function M.setup(opts)
 
     if M.opts.run_tmux ~= false then
         vim.cmd("TermExec cmd='tmux new-session -A -s nvim'")
-        vim.cmd(M.toggle_term_command)
     end
-    M.coderun_json = M.load_json()
-    if (M.coderun_json) then
-        M.bind_commands(M.coderun_json)
-    else
-        M.coderun_json = M.generate_commands_table(vim.fn.expand("%:e"))
-        M.bind_commands(M.coderun_json)
-    end
-    vim.api.nvim_exec([[
-            augroup CodeRunner
-                autocmd!
-                autocmd BufEnter * lua require('code-runner').handle_buffer_enter()
-                autocmd BufLeave * lua require('code-runner').handle_buffer_exit()
-                augroup END
-                ]], false)
+
     M.opts.interrupt_keymap = M.opts.interrupt_keymap or '<F2>'
     local modes = { 'n', 'i', 'v', 't' }
     for _, mode in ipairs(modes) do
@@ -335,6 +320,31 @@ function M.setup(opts)
         M.toggle_term_command = 'ToggleSkyTerm'
     else
         M.toggle_term_command = 'ToggleTerm'
+    end
+
+    -- Defer the loading of JSON and binding of commands
+    vim.api.nvim_create_autocmd("VimEnter", {
+        callback = function()
+            M.initialize()
+        end,
+    })
+
+    vim.api.nvim_exec([[
+        augroup CodeRunner
+            autocmd!
+            autocmd BufEnter * lua require('code-runner').handle_buffer_enter()
+            autocmd BufLeave * lua require('code-runner').handle_buffer_exit()
+        augroup END
+    ]], false)
+end
+function M.initialize()
+    M.coderun_json = M.load_json()
+    if M.coderun_json then
+        M.bind_commands(M.coderun_json)
+    else
+        local file_extension = vim.fn.expand("%:e")
+        M.coderun_json = M.generate_commands_table(file_extension)
+        M.bind_commands(M.coderun_json)
     end
     vim.notify("toggle_term_command: " .. M.toggle_term_command)
 end
