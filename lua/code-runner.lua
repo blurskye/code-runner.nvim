@@ -650,12 +650,48 @@ function M.trim(s)
     return (s:gsub("^%s*(.-)%s*$", "%1"))
 end
 
+-- function M.run_command(command)
+--     if M.running_command then
+--         return
+--     end
+--     M.running_command = true
+--     local values = {}
+
+--     for cmd in string.gmatch(command, "([^&&]+)") do
+--         cmd = M.trim(cmd)
+--         for var in string.gmatch(cmd, "`%${(.-)}%`") do
+--             if not values[var] then
+--                 local value = vim.fn.input("Enter value for " .. var .. ": ")
+--                 if value == "" then
+--                     M.running_command = false
+--                     return
+--                 end
+--                 values[var] = value
+--             end
+--             cmd = cmd:gsub("`%${" .. var .. "}%`", values[var])
+--         end
+--         if cmd:sub(1, 1) == ":" then
+--             vim.api.nvim_command(cmd)
+--         else
+--             if M.toggle_term_command == "ToggleSkyTerm" then
+--                 vim.api.nvim_command("SendToSkyTerm " .. cmd)
+--             else
+--                 vim.api.nvim_command("TermExec cmd=" .. vim.fn.shellescape(cmd))
+--             end
+--         end
+--     end
+--     M.running_command = false
+-- end
 function M.run_command(command)
     if M.running_command then
         return
     end
     M.running_command = true
     local values = {}
+
+    local function shell_escape(str)
+        return "'" .. string.gsub(str, "'", "'\\''") .. "'"
+    end
 
     for cmd in string.gmatch(command, "([^&&]+)") do
         cmd = M.trim(cmd)
@@ -668,8 +704,16 @@ function M.run_command(command)
                 end
                 values[var] = value
             end
-            cmd = cmd:gsub("`%${" .. var .. "}%`", values[var])
+            cmd = cmd:gsub("`%${" .. var .. "}%`", shell_escape(values[var]))
         end
+        
+        -- Replace variables with shell-escaped values
+        cmd = cmd:gsub("%$dir", shell_escape(M.adjust_command_path()))
+        cmd = cmd:gsub("%$fileName", shell_escape(vim.fn.expand("%:t")))
+        cmd = cmd:gsub("%$fileNameWithoutExt", shell_escape(vim.fn.expand("%:t:r")))
+        cmd = cmd:gsub("%$fileExtension", shell_escape(vim.fn.expand("%:e")))
+        cmd = cmd:gsub("%$filePath", shell_escape(vim.fn.expand("%:p")))
+
         if cmd:sub(1, 1) == ":" then
             vim.api.nvim_command(cmd)
         else
@@ -682,7 +726,6 @@ function M.run_command(command)
     end
     M.running_command = false
 end
-
 M.commands = {
     java = "cd $dir && javac $fileName && java $fileNameWithoutExt",
     python = "python3 -u $dir/$fileName",
