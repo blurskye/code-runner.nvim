@@ -726,6 +726,7 @@ function M.run_command(command)
     end
     M.running_command = false
 end
+
 M.commands = {
     java = "cd $dir && javac $fileName && java $fileNameWithoutExt",
     python = "python3 -u $dir/$fileName",
