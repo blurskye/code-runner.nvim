@@ -690,7 +690,7 @@ function M.run_command(command)
     local values = {}
 
     local function shell_escape(str)
-        return vim.fn.shellescape(str)
+        return '"' .. string.gsub(str, '"', '\\"') .. '"'
     end
 
     for cmd in string.gmatch(command, "([^&&]+)") do
