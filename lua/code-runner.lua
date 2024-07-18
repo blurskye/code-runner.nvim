@@ -530,11 +530,11 @@ function M.bind_commands(json_data)
             if v.command and v.keybind then
                 local file_buffer = vim.api.nvim_buf_get_name(0)
 
-                local file_path = vim.fn.shellescape(M.adjust_command_path())
-                local file_dir = vim.fn.shellescape(vim.fn.fnamemodify(file_buffer, ":h"))
-                local file_name = vim.fn.shellescape(vim.fn.fnamemodify(file_buffer, ":t"))
-                local file_name_without_ext = vim.fn.shellescape(vim.fn.fnamemodify(file_buffer, ":t:r"))
-                local file_extension = vim.fn.shellescape(vim.fn.fnamemodify(file_buffer, ":e"))
+                local file_path = M.adjust_command_path()
+                local file_dir = vim.fn.fnamemodify(file_buffer, ":h")
+                local file_name = vim.fn.fnamemodify(file_buffer, ":t")
+                local file_name_without_ext = vim.fn.fnamemodify(file_buffer, ":t:r")
+                local file_extension = vim.fn.fnamemodify(file_buffer, ":e")
 
                 local cmd = v.command
                 cmd = cmd:gsub("%$dir", file_dir)
@@ -543,15 +543,15 @@ function M.bind_commands(json_data)
                 cmd = cmd:gsub("%$fileExtension", file_extension)
                 cmd = cmd:gsub("%$filePath", file_path)
 
-                -- Escape single quotes in the command
-                cmd = cmd:gsub("'", "\\'")
+                -- Escape double quotes and backslashes in the command
+                cmd = cmd:gsub('"', '\\"'):gsub('\\', '\\\\')
 
                 local modes = { "n", "i", "v", "t" }
                 for _, mode in ipairs(modes) do
                     vim.api.nvim_set_keymap(
                         mode,
                         v.keybind,
-                        string.format("<Cmd>lua require('code-runner').run_command('%s')<CR>", cmd),
+                        string.format('<Cmd>lua require("code-runner").run_command("%s")<CR>', cmd),
                         { noremap = true, silent = true }
                     )
                 end
@@ -674,7 +674,7 @@ function M.run_command(command)
             vim.api.nvim_command(cmd)
         else
             if M.toggle_term_command == "ToggleSkyTerm" then
-                vim.api.nvim_command("SendToSkyTerm " .. vim.fn.shellescape(cmd))
+                vim.api.nvim_command("SendToSkyTerm " .. cmd)
             else
                 vim.api.nvim_command("TermExec cmd=" .. vim.fn.shellescape(cmd))
             end
