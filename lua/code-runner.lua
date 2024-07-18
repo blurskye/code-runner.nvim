@@ -690,7 +690,7 @@ function M.run_command(command)
     local values = {}
 
     local function shell_escape(str)
-        return "'" .. string.gsub(str, "'", "'\\''") .. "'"
+        return '"' .. string.gsub(str, '"', '\\"') .. '"'
     end
 
     for cmd in string.gmatch(command, "([^&&]+)") do
@@ -718,7 +718,7 @@ function M.run_command(command)
             vim.api.nvim_command(cmd)
         else
             if M.toggle_term_command == "ToggleSkyTerm" then
-                vim.api.nvim_command("SendToSkyTerm " .. cmd)
+                vim.api.nvim_command("SendToSkyTerm " .. vim.fn.shellescape(cmd))
             else
                 vim.api.nvim_command("TermExec cmd=" .. vim.fn.shellescape(cmd))
             end
