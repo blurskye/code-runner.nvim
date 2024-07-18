@@ -537,18 +537,21 @@ function M.bind_commands(json_data)
                 local file_extension = vim.fn.shellescape(vim.fn.fnamemodify(file_buffer, ":e"))
 
                 local cmd = v.command
-                cmd = cmd:gsub("$dir", file_dir)
-                cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
-                cmd = cmd:gsub("$fileName", file_name)
-                cmd = cmd:gsub("$fileExtension", file_extension)
-                cmd = cmd:gsub("$filePath", file_path)
+                cmd = cmd:gsub("%$dir", file_dir)
+                cmd = cmd:gsub("%$fileNameWithoutExt", file_name_without_ext)
+                cmd = cmd:gsub("%$fileName", file_name)
+                cmd = cmd:gsub("%$fileExtension", file_extension)
+                cmd = cmd:gsub("%$filePath", file_path)
+
+                -- Escape single quotes in the command
+                cmd = cmd:gsub("'", "\\'")
 
                 local modes = { "n", "i", "v", "t" }
                 for _, mode in ipairs(modes) do
                     vim.api.nvim_set_keymap(
                         mode,
                         v.keybind,
-                        "<Cmd>lua require('code-runner').run_command('" .. cmd .. "')<CR>",
+                        string.format("<Cmd>lua require('code-runner').run_command('%s')<CR>", cmd),
                         { noremap = true, silent = true }
                     )
                 end
@@ -671,9 +674,9 @@ function M.run_command(command)
             vim.api.nvim_command(cmd)
         else
             if M.toggle_term_command == "ToggleSkyTerm" then
-                vim.api.nvim_command("SendToSkyTerm " .. cmd)
+                vim.api.nvim_command("SendToSkyTerm " .. vim.fn.shellescape(cmd))
             else
-                vim.api.nvim_command("TermExec cmd='" .. cmd .. "'")
+                vim.api.nvim_command("TermExec cmd=" .. vim.fn.shellescape(cmd))
             end
         end
     end
