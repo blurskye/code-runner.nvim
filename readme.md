@@ -26,7 +26,7 @@ You can install this plugin with your favorite plugin manager. Here's an example
 ```lua
 {
   {
-    "blueskye/code-runner.nvim",
+    "blurskye/code-runner.nvim",
     dependencies = {
       "akinsho/toggleterm.nvim",
     },
