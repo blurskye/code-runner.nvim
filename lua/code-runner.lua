@@ -1,4 +1,4 @@
--- lua/code_runner.lua
+-- lua/code-runner.lua
 
 local M = {}
 local uv = vim.loop
@@ -176,10 +176,10 @@ function M.set_keymaps()
     vim.api.nvim_set_keymap('n', interrupt_keymap, '', { noremap = true, silent = true })
 
     -- Bind the run key
-    vim.api.nvim_set_keymap('n', keymap, "<Cmd>lua require('code_runner').run()<CR>", { noremap = true, silent = true })
+    vim.api.nvim_set_keymap('n', keymap, "<Cmd>lua require('code-runner').run()<CR>", { noremap = true, silent = true })
 
     -- Bind the interrupt key
-    vim.api.nvim_set_keymap('n', interrupt_keymap, "<Cmd>lua require('code_runner').send_interrupt()<CR>", { noremap = true, silent = true })
+    vim.api.nvim_set_keymap('n', interrupt_keymap, "<Cmd>lua require('code-runner').send_interrupt()<CR>", { noremap = true, silent = true })
 end
 
 -- Run the code
