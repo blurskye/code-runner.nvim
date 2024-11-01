@@ -2,17 +2,16 @@
 
 local M = {}
 local uv = vim.loop
-local Job = require('plenary.job') -- We'll use plenary for asynchronous job handling
 
 -- Default configurations
 M.defaults = {
-    keymap = '<F5>', -- Keymap to run the code
-    interrupt_keymap = '<F2>', -- Keymap to interrupt the running code
+    keymap = '<F5>',            -- Keymap to run the code
+    interrupt_keymap = '<F2>',  -- Keymap to interrupt the running code (if applicable)
     commands = {
         python = "python3 -u \"$dir/$fileName\"",
         java = "cd \"$dir\" && javac \"$fileName\" && java \"$fileNameWithoutExt\"",
         typescript = "deno run \"$dir/$fileName\"",
-        rust = "cargo run",
+        rust = "cd \"$dir\" && rustc \"$fileName\" && \"$dir/$fileNameWithoutExt\"",
         c = "cd \"$dir\" && gcc \"$fileName\" -o \"$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
         cpp = "cd \"$dir\" && g++ \"$fileName\" -o \"$dir/$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
         javascript = "node \"$dir/$fileName\"",
@@ -51,13 +50,17 @@ M.defaults = {
 }
 
 M.config = {}
+M.current_command = nil
+M.watch_handle = nil
 
--- Function to merge user options with defaults
+-- Utility function to merge tables (shallow merge)
 local function merge_tables(default, user)
     if not user then return default end
     for k, v in pairs(user) do
         if type(v) == "table" and type(default[k] or false) == "table" then
-            merge_tables(default[k], v)
+            for key, val in pairs(v) do
+                default[k][key] = val
+            end
         else
             default[k] = v
         end
@@ -68,12 +71,16 @@ end
 -- Find the path to coderun.json by searching up the directory tree
 function M.find_coderun_json_path(start_path)
     local path = start_path or vim.fn.expand("%:p:h")
-    while path ~= "/" and path ~= "." do
+    while path and path ~= "/" and path ~= "." do
         local json_path = path .. "/coderun.json"
         if vim.fn.filereadable(json_path) == 1 then
             return json_path
         end
-        path = vim.fn.fnamemodify(path, ":h")
+        local parent = vim.fn.fnamemodify(path, ":h")
+        if parent == path then
+            break
+        end
+        path = parent
     end
     return nil
 end
@@ -96,7 +103,7 @@ function M.load_json_config(json_path)
 end
 
 -- Generate command based on the current file and configuration
-function M.generate_command(config)
+function M.generate_command(command_template)
     local bufnr = vim.api.nvim_get_current_buf()
     local file_path = vim.api.nvim_buf_get_name(bufnr)
     local file_dir = vim.fn.fnamemodify(file_path, ":h")
@@ -104,7 +111,7 @@ function M.generate_command(config)
     local file_name_without_ext = vim.fn.fnamemodify(file_path, ":t:r")
     local file_extension = vim.fn.fnamemodify(file_path, ":e")
 
-    local cmd = config.command
+    local cmd = command_template
         :gsub("$dir", file_dir)
         :gsub("$fileName", file_name)
         :gsub("$fileNameWithoutExt", file_name_without_ext)
@@ -114,72 +121,16 @@ function M.generate_command(config)
     return cmd
 end
 
--- Run the generated command asynchronously
+-- Run the generated command using :SendToSkyTerm
 function M.run_command(cmd)
-    if M.current_job and M.current_job:is_running() then
-        vim.notify("A job is already running. Press interrupt key to stop it.", vim.log.levels.WARN)
+    if M.current_command then
+        vim.notify("A command is already running. Please wait or interrupt it before running another.", vim.log.levels.WARN)
         return
     end
 
+    M.current_command = cmd
+    vim.cmd("SendToSkyTerm " .. cmd)
     vim.notify("Running: " .. cmd, vim.log.levels.INFO)
-
-    -- Open a new split terminal
-    vim.cmd("split")
-    vim.cmd("terminal")
-    local term_buf = vim.api.nvim_get_current_buf()
-
-    -- Start the job
-    M.current_job = Job:new({
-        command = "bash",
-        args = { "-c", cmd },
-        on_exit = function(j, return_val)
-            vim.schedule(function()
-                vim.api.nvim_buf_set_lines(term_buf, -1, -1, false, { "\nProcess exited with code " .. return_val })
-                vim.api.nvim_buf_set_option(term_buf, "modifiable", false)
-                vim.notify("Process exited with code " .. return_val, vim.log.levels.INFO)
-            end)
-        end,
-        on_stdout = function(j, data)
-            if data then
-                vim.schedule(function()
-                    vim.api.nvim_buf_set_lines(term_buf, -1, -1, false, { data })
-                end)
-            end
-        end,
-        on_stderr = function(j, data)
-            if data then
-                vim.schedule(function()
-                    vim.api.nvim_buf_set_lines(term_buf, -1, -1, false, { data })
-                end)
-            end
-        end,
-    }):start()
-end
-
--- Interrupt the running job
-function M.send_interrupt()
-    if M.current_job and M.current_job:is_running() then
-        M.current_job:stop()
-        vim.notify("Job interrupted", vim.log.levels.INFO)
-    else
-        vim.notify("No running job to interrupt", vim.log.levels.WARN)
-    end
-end
-
--- Set up keybindings
-function M.set_keymaps()
-    local keymap = M.config.keymap
-    local interrupt_keymap = M.config.interrupt_keymap
-
-    -- Unmap existing keymaps to avoid duplicates
-    vim.api.nvim_set_keymap('n', keymap, '', { noremap = true, silent = true })
-    vim.api.nvim_set_keymap('n', interrupt_keymap, '', { noremap = true, silent = true })
-
-    -- Bind the run key
-    vim.api.nvim_set_keymap('n', keymap, "<Cmd>lua require('code-runner').run()<CR>", { noremap = true, silent = true })
-
-    -- Bind the interrupt key
-    vim.api.nvim_set_keymap('n', interrupt_keymap, "<Cmd>lua require('code-runner').send_interrupt()<CR>", { noremap = true, silent = true })
 end
 
 -- Run the code
@@ -217,8 +168,36 @@ function M.run()
         return
     end
 
-    local cmd = M.generate_command({ command = command })
+    local cmd = M.generate_command(command)
     M.run_command(cmd)
+end
+
+-- Interrupt the running command (implementation depends on how SkyTerm handles it)
+function M.send_interrupt()
+    if M.current_command then
+        -- Assuming SendToSkyTerm can handle an interrupt command
+        vim.cmd("SendToSkyTerm Ctrl+C")  -- Modify as per SkyTerm's interrupt handling
+        vim.notify("Interrupt signal sent.", vim.log.levels.INFO)
+        M.current_command = nil
+    else
+        vim.notify("No running command to interrupt.", vim.log.levels.WARN)
+    end
+end
+
+-- Set up keybindings
+function M.set_keymaps()
+    local keymap = M.config.keymap
+    local interrupt_keymap = M.config.interrupt_keymap
+
+    -- Unmap existing keymaps to avoid duplicates
+    vim.api.nvim_set_keymap('n', keymap, '', { noremap = true, silent = true })
+    vim.api.nvim_set_keymap('n', interrupt_keymap, '', { noremap = true, silent = true })
+
+    -- Bind the run key
+    vim.api.nvim_set_keymap('n', keymap, "<Cmd>lua require('code-runner').run()<CR>", { noremap = true, silent = true })
+
+    -- Bind the interrupt key
+    vim.api.nvim_set_keymap('n', interrupt_keymap, "<Cmd>lua require('code-runner').send_interrupt()<CR>", { noremap = true, silent = true })
 end
 
 -- Load configuration (defaults overridden by coderun.json if available)
@@ -231,6 +210,31 @@ function M.load_configuration()
     else
         merge_tables(M.config, M.defaults)
     end
+end
+
+-- Start watching for changes in coderun.json
+function M.start_watching()
+    if M.watch_handle then
+        M.watch_handle:stop()
+        M.watch_handle:close()
+    end
+
+    local json_path = M.find_coderun_json_path()
+    if not json_path then return end
+
+    M.watch_handle = uv.new_fs_event()
+    M.watch_handle:start(json_path, {}, vim.schedule_wrap(function(err, filename, events)
+        if err then
+            vim.notify("Error watching coderun.json: " .. err, vim.log.levels.ERROR)
+            return
+        end
+        if events.change then
+            vim.notify("coderun.json changed. Reloading configuration...", vim.log.levels.INFO)
+            M.config = vim.deepcopy(M.defaults)
+            M.load_configuration()
+            M.set_keymaps()
+        end
+    end))
 end
 
 -- Setup function to initialize the plugin
@@ -247,31 +251,6 @@ function M.setup(user_opts)
 
     -- Watch for changes in coderun.json
     M.start_watching()
-end
-
--- Start watching for changes in coderun.json
-function M.start_watching()
-    local json_path = M.find_coderun_json_path()
-    if not json_path then return end
-
-    if M.fs_event then
-        M.fs_event:stop()
-        M.fs_event:close()
-    end
-
-    M.fs_event = uv.new_fs_event()
-    M.fs_event:start(json_path, {}, vim.schedule_wrap(function(err, filename, events)
-        if err then
-            vim.notify("Error watching coderun.json: " .. err, vim.log.levels.ERROR)
-            return
-        end
-        if events.change then
-            vim.notify("coderun.json changed. Reloading configuration...", vim.log.levels.INFO)
-            M.config = vim.deepcopy(M.defaults)
-            M.load_configuration()
-            M.set_keymaps()
-        end
-    end))
 end
 
 return M
