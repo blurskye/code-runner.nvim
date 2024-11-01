@@ -467,9 +467,33 @@ function M.run()
 end
 
 -- Interrupt the running command
+-- function M.send_interrupt()
+--     vim.cmd("SendToSkyTerm Ctrl+C")
+--     vim.notify("Interrupt signal sent.", vim.log.levels.INFO)
+-- end
 function M.send_interrupt()
-    vim.cmd("SendToSkyTerm Ctrl+C")
-    vim.notify("Interrupt signal sent.", vim.log.levels.INFO)
+    if M.interrupting then
+        return
+    end
+    M.interrupting = true
+    local current_win = vim.api.nvim_get_current_win()
+    local current_mode = vim.api.nvim_get_mode().mode
+    
+    require('sky-term').toggle_term_wrapper()
+    vim.defer_fn(function()
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes('<C-c>', true, true, true), 'n', true)
+        vim.defer_fn(function()
+            require('sky-term').toggle_term_wrapper()
+            if current_mode:sub(1, 1) == 'i' then
+                vim.defer_fn(function()
+                    vim.cmd('startinsert')
+                    M.interrupting = false
+                end, 50)
+            else
+                M.interrupting = false
+            end
+        end, 50)
+    end, 100)
 end
 
 -- Set up keybindings
