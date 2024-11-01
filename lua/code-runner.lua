@@ -1,4 +1,3 @@
-
 local M = {}
 local uv = vim.loop
 
@@ -8,11 +7,11 @@ M.defaults = {
     interrupt_keymap = '<F2>',
     commands = {
         python = "python3 -u \"$dir/$fileName\"",
-        -- Include all default language commands here
+        -- Include all default language commands here...
     },
     extensions = {
         python = { "py" },
-        -- Include all default language extensions here
+        -- Include all default language extensions here...
     },
     debug = false, -- Debug mode flag
 }
@@ -24,7 +23,7 @@ M.lock = false
 -- Debug logging function
 local function log_debug(message)
     if M.config.debug then
-        vim.notify("[CodeRunner] " .. message, vim.log.levels.INFO)
+        vim.notify("[CodeRunner DEBUG] " .. message, vim.log.levels.INFO)
     end
 end
 
@@ -238,6 +237,7 @@ function M.load_configuration()
             log_debug("Failed to load json_config")
         end
     else
+        M.coderun_dir = nil
         log_debug("coderun.json not found during configuration load")
     end
 end
@@ -261,6 +261,24 @@ function M.start_watching()
     end))
 end
 
+-- Set up autocmds to reload configuration on buffer enter and leave
+function M.setup_autocmds()
+    -- Create an augroup to prevent duplicate autocmds
+    vim.cmd([[
+        augroup CodeRunnerAutocmds
+            autocmd!
+            autocmd BufEnter,BufLeave * lua require('code-runner').on_buffer_event()
+        augroup END
+    ]])
+end
+
+-- Function to handle buffer events
+function M.on_buffer_event()
+    log_debug("Buffer event triggered. Reloading configuration.")
+    M.load_configuration()
+    M.set_keymaps()
+end
+
 -- Setup function
 function M.setup(user_opts)
     M.defaults = merge_tables(M.defaults, user_opts)
@@ -268,6 +286,7 @@ function M.setup(user_opts)
     M.load_configuration()
     M.set_keymaps()
     M.start_watching()
+    M.setup_autocmds() -- Set up the autocmds
 end
 
 return M
