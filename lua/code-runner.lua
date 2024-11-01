@@ -64,15 +64,16 @@ function M.find_coderun_json_path()
 end
 
 -- Show prompt to accept or reject coderun.json
-local function show_accept_prompt(json_path, content, hash)
+local function show_accept_prompt(json_path, content, hash, callback)
     local Popup = require('nui.popup')
     local event = require('nui.utils.autocmd').event
 
-    -- Create a buffer to display content
-    local lines = {}
+    -- Wrap content in ```json for syntax highlighting
+    local lines = {"```json"}
     for line in content:gmatch("[^\r\n]+") do
         table.insert(lines, line)
     end
+    table.insert(lines, "```")
 
     local popup = Popup({
         enter = true,
@@ -92,6 +93,7 @@ local function show_accept_prompt(json_path, content, hash)
         buf_options = {
             modifiable = false,
             readonly = true,
+            filetype = "markdown",  -- Set filetype for syntax highlighting
         },
         win_options = {
             cursorline = true,
@@ -104,30 +106,7 @@ local function show_accept_prompt(json_path, content, hash)
     -- Map keys for scrolling and accepting/rejecting
     popup:map("n", "<Esc>", function()
         popup:unmount()
-    end, { noremap = true })
-
-    local accept = nil
-
-    local function on_submit()
-        popup:unmount()
-        if accept ~= nil then
-            if accept then
-                M.accepted_configs[json_path] = hash
-                log_debug("User accepted coderun.json at " .. json_path)
-            else
-                log_debug("User rejected coderun.json at " .. json_path)
-            end
-        end
-    end
-
-    popup:map('n', 'y', function()
-        accept = true
-        on_submit()
-    end, { noremap = true })
-
-    popup:map('n', 'n', function()
-        accept = false
-        on_submit()
+        if callback then callback(false) end
     end, { noremap = true })
 
     -- Allow scrolling with arrow keys and hjkl
@@ -136,25 +115,39 @@ local function show_accept_prompt(json_path, content, hash)
         popup:map('n', key, cmd, { noremap = true, nowait = true })
     end
 
+    local accept = nil
+
+    popup:map('n', 'y', function()
+        accept = true
+        popup:unmount()
+        if accept then
+            M.accepted_configs[json_path] = hash
+            log_debug("User accepted coderun.json at " .. json_path)
+            if callback then callback(true) end
+        end
+    end, { noremap = true })
+
+    popup:map('n', 'n', function()
+        accept = false
+        popup:unmount()
+        log_debug("User rejected coderun.json at " .. json_path)
+        if callback then callback(false) end
+    end, { noremap = true })
+
+    -- Mount the popup
     popup:mount()
 
-    -- Focus on popup
+    -- Automatically focus on the popup window
     vim.api.nvim_set_current_win(popup.winid)
-
-    -- Wait for user input
-    vim.wait(100000, function()
-        return accept ~= nil
-    end, 10)
-
-    return accept
 end
 
 -- Load JSON configuration
-function M.load_json_config(json_path)
+function M.load_json_config(json_path, callback)
     local file = io.open(json_path, "r")
     if not file then
         vim.notify("Failed to open coderun.json at " .. json_path, vim.log.levels.ERROR)
-        return nil
+        if callback then callback(nil) end
+        return
     end
     local content = file:read("*all")
     file:close()
@@ -165,24 +158,32 @@ function M.load_json_config(json_path)
     -- Check if hash matches accepted hash
     if M.accepted_configs[json_path] == hash then
         log_debug("coderun.json has been previously accepted")
+        local success, json_data = pcall(vim.fn.json_decode, content)
+        if not success then
+            vim.notify("Failed to parse coderun.json. Please check JSON syntax.", vim.log.levels.ERROR)
+            if callback then callback(nil) end
+            return
+        end
+        log_debug("Successfully loaded coderun.json")
+        if callback then callback(json_data) end
     else
         -- Prompt the user to accept or reject
-        local accepted = show_accept_prompt(json_path, content, hash)
-        if not accepted then
-            vim.notify("coderun.json was rejected. Using default configuration.", vim.log.levels.INFO)
-            return nil
-        end
-        -- If accepted, store the hash
-        M.accepted_configs[json_path] = hash
+        show_accept_prompt(json_path, content, hash, function(accepted)
+            if accepted then
+                local success, json_data = pcall(vim.fn.json_decode, content)
+                if not success then
+                    vim.notify("Failed to parse coderun.json. Please check JSON syntax.", vim.log.levels.ERROR)
+                    if callback then callback(nil) end
+                    return
+                end
+                log_debug("Successfully loaded coderun.json")
+                if callback then callback(json_data) end
+            else
+                vim.notify("coderun.json was rejected. Using default configuration.", vim.log.levels.INFO)
+                if callback then callback(nil) end
+            end
+        end)
     end
-
-    local success, json_data = pcall(vim.fn.json_decode, content)
-    if not success then
-        vim.notify("Failed to parse coderun.json. Please check JSON syntax.", vim.log.levels.ERROR)
-        return nil
-    end
-    log_debug("Successfully loaded coderun.json")
-    return json_data
 end
 
 -- Generate command
@@ -358,24 +359,27 @@ function M.load_configuration()
     local json_path = M.find_coderun_json_path()
     if json_path then
         M.coderun_dir = vim.fn.fnamemodify(json_path, ":h")
-        local json_config = M.load_json_config(json_path)
-        if json_config then
-            -- Process custom commands and keybinds
-            M.config.coderun_commands = {}
-            M.config.coderun_keybinds = {}
-            for _, entry in pairs(json_config) do
-                if entry.command and entry.keybind then
-                    M.config.coderun_commands[entry.keybind] = entry.command
-                    M.config.coderun_keybinds[entry.keybind] = entry.command
-                    log_debug("Loaded command from coderun.json: keybind=" .. entry.keybind .. ", command=" .. entry.command)
+        M.load_json_config(json_path, function(json_config)
+            if json_config then
+                -- Process custom commands and keybinds
+                M.config.coderun_commands = {}
+                M.config.coderun_keybinds = {}
+                for _, entry in pairs(json_config) do
+                    if entry.command and entry.keybind then
+                        M.config.coderun_commands[entry.keybind] = entry.command
+                        M.config.coderun_keybinds[entry.keybind] = entry.command
+                        log_debug("Loaded command from coderun.json: keybind=" .. entry.keybind .. ", command=" .. entry.command)
+                    end
                 end
+            else
+                log_debug("Failed to load json_config")
             end
-        else
-            log_debug("Failed to load json_config")
-        end
+            M.set_keymaps()
+        end)
     else
         M.coderun_dir = nil
         log_debug("coderun.json not found during configuration load")
+        M.set_keymaps()
     end
 end
 
@@ -393,9 +397,8 @@ function M.start_watching()
     M.watch_handle = uv.new_fs_event()
     M.watch_handle:start(json_path, {}, vim.schedule_wrap(function()
         vim.notify("coderun.json changed.", vim.log.levels.INFO)
-        -- Reload configuration, will prompt the user if necessary
+        -- Reload configuration
         M.load_configuration()
-        M.set_keymaps()
     end))
 end
 
@@ -414,7 +417,6 @@ end
 function M.on_buffer_event()
     log_debug("Buffer event triggered. Reloading configuration.")
     M.load_configuration()
-    M.set_keymaps()
     M.start_watching()
 end
 
@@ -423,8 +425,6 @@ function M.setup(user_opts)
     M.defaults = merge_tables(M.defaults, user_opts)
     M.config = vim.deepcopy(M.defaults)
     M.load_configuration()
-    M.set_keymaps()
-    M.start_watching()
     M.setup_autocmds()
 end
 
