@@ -64,11 +64,93 @@ function M.find_coderun_json_path()
 end
 
 -- Show prompt to accept or reject coderun.json
-local function show_accept_prompt(json_path, content, hash, callback)
+-- local function show_accept_prompt(json_path, content, hash, callback)
+--     local Popup = require('nui.popup')
+--     local event = require('nui.utils.autocmd').event
+
+--     -- Wrap content in ```json for syntax highlighting
+--     local lines = {"```json"}
+--     for line in content:gmatch("[^\r\n]+") do
+--         table.insert(lines, line)
+--     end
+--     table.insert(lines, "```")
+
+--     local popup = Popup({
+--         enter = true,
+--         focusable = true,
+--         border = {
+--             style = "rounded",
+--             text = {
+--                 top = " Accept coderun.json? [y/n] ",
+--                 top_align = "center",
+--             },
+--         },
+--         position = "50%",
+--         size = {
+--             width = "80%",
+--             height = "60%",
+--         },
+--         buf_options = {
+--             modifiable = false,
+--             readonly = true,
+--             filetype = "markdown",  -- Set filetype for syntax highlighting
+--         },
+--         win_options = {
+--             cursorline = true,
+--         },
+--     })
+
+--     -- Set buffer lines
+--     vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, lines)
+
+--     -- Map keys for scrolling and accepting/rejecting
+--     popup:map("n", "<Esc>", function()
+--         popup:unmount()
+--         if callback then callback(false) end
+--     end, { noremap = true })
+
+--     -- Allow scrolling with arrow keys and hjkl
+--     local scroll_mappings = { k = 'k', j = 'j', h = 'h', l = 'l', ['<Up>'] = 'k', ['<Down>'] = 'j', ['<Left>'] = 'h', ['<Right>'] = 'l' }
+--     for key, cmd in pairs(scroll_mappings) do
+--         popup:map('n', key, cmd, { noremap = true, nowait = true })
+--     end
+
+--     local accept = nil
+
+--     popup:map('n', 'y', function()
+--         accept = true
+--         popup:unmount()
+--         if accept then
+--             M.accepted_configs[json_path] = hash
+--             log_debug("User accepted coderun.json at " .. json_path)
+--             if callback then callback(true) end
+--         end
+--     end, { noremap = true })
+
+--     popup:map('n', 'n', function()
+--         accept = false
+--         popup:unmount()
+--         log_debug("User rejected coderun.json at " .. json_path)
+--         if callback then callback(false) end
+--     end, { noremap = true })
+
+--     -- Mount the popup
+--     popup:mount()
+
+--     -- Automatically focus on the popup window
+--     vim.api.nvim_set_current_win(popup.winid)
+-- end
+function M.show_accept_prompt(json_path, content, hash, callback)
+    -- Create a unique ID for this prompt to prevent multiple prompts
+    local prompt_id = json_path .. hash
+    if M.active_prompt == prompt_id then
+        return  -- Don't show multiple prompts for the same file/hash
+    end
+    M.active_prompt = prompt_id
+
     local Popup = require('nui.popup')
     local event = require('nui.utils.autocmd').event
 
-    -- Wrap content in ```json for syntax highlighting
     local lines = {"```json"}
     for line in content:gmatch("[^\r\n]+") do
         table.insert(lines, line)
@@ -81,7 +163,7 @@ local function show_accept_prompt(json_path, content, hash, callback)
         border = {
             style = "rounded",
             text = {
-                top = " Accept coderun.json? [y/n] ",
+                top = " Accept coderun.json? (y/n) ",
                 top_align = "center",
             },
         },
@@ -93,54 +175,79 @@ local function show_accept_prompt(json_path, content, hash, callback)
         buf_options = {
             modifiable = false,
             readonly = true,
-            filetype = "markdown",  -- Set filetype for syntax highlighting
-        },
-        win_options = {
-            cursorline = true,
+            filetype = "markdown",
         },
     })
 
-    -- Set buffer lines
-    vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, lines)
-
-    -- Map keys for scrolling and accepting/rejecting
-    popup:map("n", "<Esc>", function()
+    -- Clean up function
+    local function cleanup()
+        M.active_prompt = nil
         popup:unmount()
-        if callback then callback(false) end
-    end, { noremap = true })
-
-    -- Allow scrolling with arrow keys and hjkl
-    local scroll_mappings = { k = 'k', j = 'j', h = 'h', l = 'l', ['<Up>'] = 'k', ['<Down>'] = 'j', ['<Left>'] = 'h', ['<Right>'] = 'l' }
-    for key, cmd in pairs(scroll_mappings) do
-        popup:map('n', key, cmd, { noremap = true, nowait = true })
     end
 
-    local accept = nil
-
-    popup:map('n', 'y', function()
-        accept = true
-        popup:unmount()
-        if accept then
-            M.accepted_configs[json_path] = hash
-            log_debug("User accepted coderun.json at " .. json_path)
-            if callback then callback(true) end
-        end
+    -- Handle user input
+    popup:map("n", "y", function()
+        cleanup()
+        M.accepted_configs[json_path] = hash
+        if callback then callback(true) end
     end, { noremap = true })
 
-    popup:map('n', 'n', function()
-        accept = false
-        popup:unmount()
-        log_debug("User rejected coderun.json at " .. json_path)
+    popup:map("n", "n", function()
+        cleanup()
         if callback then callback(false) end
     end, { noremap = true })
 
-    -- Mount the popup
-    popup:mount()
+    popup:map("n", "<Esc>", function()
+        cleanup()
+        if callback then callback(false) end
+    end, { noremap = true })
 
-    -- Automatically focus on the popup window
+    -- Scroll mappings
+    local scroll_keys = { 'j', 'k', 'h', 'l', '<Up>', '<Down>', '<Left>', '<Right>' }
+    for _, key in ipairs(scroll_keys) do
+        popup:map('n', key, key, { noremap = true })
+    end
+
+    -- Set content
+    popup:mount()
+    vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, lines)
     vim.api.nvim_set_current_win(popup.winid)
 end
 
+function M.load_json_config(json_path, callback)
+    local file = io.open(json_path, "r")
+    if not file then return end
+    
+    local content = file:read("*all")
+    file:close()
+
+    local hash = vim.fn.sha256(content)
+    
+    -- If hash matches stored hash, accept automatically
+    if M.accepted_configs[json_path] == hash then
+        local success, json_data = pcall(vim.fn.json_decode, content)
+        if success then
+            if callback then callback(json_data) end
+        end
+        return
+    end
+
+    -- Show prompt for new or changed config
+    M.show_accept_prompt(json_path, content, hash, function(accepted)
+        if accepted then
+            local success, json_data = pcall(vim.fn.json_decode, content)
+            if success then
+                if callback then callback(json_data) end
+            end
+        else
+            if callback then callback(nil) end
+        end
+    end)
+end
+
+-- Initialize module variables
+M.accepted_configs = {}  -- Store accepted hashes
+M.active_prompt = nil   -- Track active prompt
 -- Load JSON configuration
 function M.load_json_config(json_path, callback)
     local file = io.open(json_path, "r")
