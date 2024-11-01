@@ -1,38 +1,209 @@
 local M = {}
 local uv = vim.loop
-local Popup = require("nui.popup")
-local event = require("nui.utils.autocmd").event
-local Text = require("nui.text")
-local Line = require("nui.line")
 
-function M.unbind_commands(json_data)
-    local modes = { 'n', 'i', 'v', 't' }
+-- Default configurations
+M.defaults = {
+    keymap = '<F5>',
+    interrupt_keymap = '<F2>',
+    commands = {
+        python = "python3 -u \"$dir/$fileName\"",
+        -- Include all default language commands here...
+    },
+    extensions = {
+        python = { "py" },
+        -- Include all default language extensions here...
+    },
+    debug = false, -- Debug mode flag
+}
 
-    if json_data and type(json_data) == "table" then
-        for _, v in pairs(json_data) do
-            if v.command and v.keybind then
-                for _, mode in ipairs(modes) do
-                    vim.api.nvim_set_keymap(mode, v.keybind, '', { noremap = true, silent = true })
-                end
+M.config = {}
+M.watch_handle = nil
+M.lock = false
+M.previous_keybinds = {}
+
+-- Debug logging function
+local function log_debug(message)
+    if M.config.debug then
+        vim.notify("[CodeRunner DEBUG] " .. message, vim.log.levels.INFO)
+    end
+end
+
+-- Utility function to merge tables
+local function merge_tables(default, user)
+    if not user then return default end
+    for k, v in pairs(user) do
+        if type(v) == "table" and type(default[k]) == "table" then
+            default[k] = merge_tables(default[k], v)
+        else
+            default[k] = v
+        end
+    end
+    return default
+end
+
+-- Find the path to coderun.json
+function M.find_coderun_json_path()
+    local path = vim.fn.expand("%:p:h")
+    log_debug("Starting search for coderun.json from: " .. path)
+    while path and path ~= "/" do
+        local json_path = path .. "/coderun.json"
+        log_debug("Checking: " .. json_path)
+        if vim.fn.filereadable(json_path) == 1 then
+            log_debug("Found coderun.json at: " .. json_path)
+            return json_path
+        end
+        local parent = vim.fn.fnamemodify(path, ":h")
+        if parent == path then -- Reached the root
+            break
+        end
+        path = parent
+    end
+    log_debug("coderun.json not found")
+    return nil
+end
+
+-- Load JSON configuration
+function M.load_json_config(json_path)
+    local file = io.open(json_path, "r")
+    if not file then
+        vim.notify("Failed to open coderun.json at " .. json_path, vim.log.levels.ERROR)
+        return nil
+    end
+    local content = file:read("*all")
+    file:close()
+    local success, json_data = pcall(vim.fn.json_decode, content)
+    if not success then
+        vim.notify("Failed to parse coderun.json. Please check JSON syntax.", vim.log.levels.ERROR)
+        return nil
+    end
+    log_debug("Successfully loaded coderun.json")
+    return json_data
+end
+
+-- Generate command
+function M.generate_command(command_template)
+    local bufnr = vim.api.nvim_get_current_buf()
+    local file_path = vim.api.nvim_buf_get_name(bufnr)
+    local file_dir = vim.fn.fnamemodify(file_path, ":h")
+    local file_name = vim.fn.fnamemodify(file_path, ":t")
+    local file_name_without_ext = vim.fn.fnamemodify(file_path, ":t:r")
+    local file_extension = vim.fn.fnamemodify(file_path, ":e")
+    local coderun_dir = M.coderun_dir or file_dir
+
+    local cmd = command_template
+        :gsub("$dir", file_dir)
+        :gsub("$fileName", file_name)
+        :gsub("$fileNameWithoutExt", file_name_without_ext)
+        :gsub("$fileExtension", file_extension)
+        :gsub("$filePath", file_path)
+        :gsub("$coderunDir", coderun_dir)
+
+    return cmd
+end
+
+-- Run the command
+-- function M.run_command(cmd)
+--     if M.lock then
+--         vim.notify("CodeRunner is busy. Please wait...", vim.log.levels.WARN)
+--         return
+--     end
+
+--     M.lock = true
+--     vim.cmd("SendToSkyTerm " .. cmd)
+--     if (M.debug) then
+--         vim.notify("Running: " .. cmd, vim.log.levels.INFO)
+--     end
+--     vim.defer_fn(function()
+--         M.lock = false
+--     end, 1000)
+-- end
+function M.run_command(cmd)
+    if M.lock then
+        vim.notify("CodeRunner is busy. Please wait...", vim.log.levels.WARN)
+        return
+    end
+
+    M.lock = true
+    
+    -- If we have a coderun directory, prepend cd command
+    if M.coderun_dir then
+        -- Escape spaces in path
+        local escaped_dir = M.coderun_dir:gsub(" ", "\\ ")
+        cmd = "cd " .. escaped_dir .. " && " .. cmd
+    end
+
+    vim.cmd("SendToSkyTerm " .. cmd)
+    if (M.debug) then
+        vim.notify("Running: " .. cmd, vim.log.levels.INFO)
+    end
+    
+    vim.defer_fn(function()
+        M.lock = false
+    end, 1000)
+end
+
+-- Run the code
+function M.run()
+    log_debug("Run function called")
+    local cmd = nil
+
+    -- First, attempt to get command from coderun.json based on keymap
+    if M.config.coderun_commands and next(M.config.coderun_commands) then
+        cmd = M.config.coderun_commands[M.config.keymap]
+        if cmd then
+            log_debug("Found command in coderun.json for keymap " .. M.config.keymap)
+            cmd = M.generate_command(cmd)
+            M.run_command(cmd)
+            return
+        else
+            log_debug("No command in coderun.json for keymap " .. M.config.keymap)
+        end
+    else
+        log_debug("No coderun_commands found")
+    end
+
+    -- Fallback to language default
+    log_debug("Falling back to language default command")
+    local bufnr = vim.api.nvim_get_current_buf()
+    local file_path = vim.api.nvim_buf_get_name(bufnr)
+    if file_path == "" then
+        vim.notify("No file is currently open.", vim.log.levels.WARN)
+        return
+    end
+
+    local file_extension = vim.fn.fnamemodify(file_path, ":e")
+    local language = nil
+
+    for lang, exts in pairs(M.config.extensions) do
+        for _, ext in ipairs(exts) do
+            if ext == file_extension then
+                language = lang
+                break
             end
         end
+        if language then break end
     end
-end
 
-function M.adjust_command_path()
-    return M.coderun_json_dir or vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h")
-end
-
-local function keybind_exists(keybind)
-    local keymaps = vim.api.nvim_get_keymap('n')
-    for _, map in pairs(keymaps) do
-        if map.lhs == keybind then
-            return true
-        end
+    if not language then
+        vim.notify("Unsupported file extension: " .. file_extension, vim.log.levels.ERROR)
+        return
     end
-    return false
+
+    local command = M.config.commands[language]
+    if not command then
+        vim.notify("No command configured for language: " .. language, vim.log.levels.ERROR)
+        return
+    end
+
+    cmd = M.generate_command(command)
+    M.run_command(cmd)
 end
 
+-- Interrupt the running command
+-- function M.send_interrupt()
+--     vim.cmd("SendToSkyTerm Ctrl+C")
+--     vim.notify("Interrupt signal sent.", vim.log.levels.INFO)
+-- end
 function M.send_interrupt()
     if M.interrupting then
         return
@@ -58,368 +229,116 @@ function M.send_interrupt()
     end, 100)
 end
 
-function M.bind_commands(json_data)
-    if json_data and type(json_data) == "table" then
-        for _, v in pairs(json_data) do
-            if v.command and v.keybind then
-                local file_buffer = vim.api.nvim_buf_get_name(0)
-                local file_path = '"' .. M.adjust_command_path() .. '"'
-                local file_dir = '"' .. vim.fn.fnamemodify(file_buffer, ":h") .. '"'
-                local file_name = '"' .. vim.fn.fnamemodify(file_buffer, ":t") .. '"'
-                local file_name_without_ext = '"' .. vim.fn.fnamemodify(file_buffer, ":t:r") .. '"'
-                local file_extension = '"' .. vim.fn.fnamemodify(file_buffer, ":e") .. '"'
-
-                local cmd = v.command
-                    :gsub("$dir", file_dir)
-                    :gsub("$fileNameWithoutExt", file_name_without_ext)
-                    :gsub("$fileName", file_name)
-                    :gsub("$fileExtension", file_extension)
-                    :gsub("$filePath", file_path)
-
-                local modes = { 'n', 'i', 'v', 't' }
-                for _, mode in ipairs(modes) do
-                    if string.sub(v.command, 1, 1) == ":" then
-                        vim.api.nvim_set_keymap(mode, v.keybind,
-                            "<Cmd>" .. string.sub(v.command, 2) .. "<CR>",
-                            { noremap = true, silent = true })
-                    elseif string.match(v.command, "`%${(.-)}%`") then
-                        vim.api.nvim_set_keymap(mode, v.keybind,
-                            "<Cmd>lua require('code-runner').complete_variables_in_commands('" .. cmd .. "')<CR>",
-                            { noremap = true, silent = true })
-                    else
-                        vim.api.nvim_set_keymap(mode, v.keybind,
-                            "<Cmd>lua require('sky-term').send_to_term('" .. cmd .. "')<CR>",
-                            { noremap = true, silent = true })
-                    end
-                end
+-- Set up keybindings
+function M.set_keymaps()
+    -- Unbind previous keymaps if they exist
+    if M.previous_keybinds and next(M.previous_keybinds) then
+        for _, keybind in ipairs(M.previous_keybinds) do
+            if vim.fn.maparg(keybind, 'n') ~= '' then
+                vim.api.nvim_del_keymap('n', keybind)
+                log_debug("Unbound previous keybind: " .. keybind)
             end
         end
     end
-end
 
-function M.find_coderun_json_path()
-    local bufnr = vim.api.nvim_get_current_buf()
-    local file_path = vim.api.nvim_buf_get_name(bufnr)
-    local file_dir = vim.fn.fnamemodify(file_path, ":h")
-    local root_dir = "/"
+    M.previous_keybinds = {}
 
-    while file_dir ~= root_dir do
-        local json_path = file_dir .. "/coderun.json"
-        if vim.fn.filereadable(json_path) == 1 then
-            return json_path
+    -- Bind the run key
+    vim.api.nvim_set_keymap('n', M.config.keymap, "<Cmd>lua require('code-runner').run()<CR>", { noremap = true, silent = true })
+    table.insert(M.previous_keybinds, M.config.keymap)
+
+    -- Bind the interrupt key
+    vim.api.nvim_set_keymap('n', M.config.interrupt_keymap, "<Cmd>lua require('code-runner').send_interrupt()<CR>", { noremap = true, silent = true })
+    table.insert(M.previous_keybinds, M.config.interrupt_keymap)
+
+    -- Set keymaps from coderun.json
+    if M.config.coderun_keybinds then
+        for keybind, cmd in pairs(M.config.coderun_keybinds) do
+            vim.api.nvim_set_keymap('n', keybind, "<Cmd>lua require('code-runner').run_custom('" .. cmd .. "')<CR>", { noremap = true, silent = true })
+            table.insert(M.previous_keybinds, keybind)
+            log_debug("Set keybind: " .. keybind .. " for command: " .. cmd)
         end
-        local parent_dir = vim.fn.fnamemodify(file_dir, ":h")
-        if parent_dir == file_dir then
-            break
-        end
-        file_dir = parent_dir
     end
-    return nil
 end
 
-function M.load_json()
+-- Run custom command from coderun.json
+function M.run_custom(command)
+    local cmd = M.generate_command(command)
+    M.run_command(cmd)
+end
+
+-- Load configuration
+function M.load_configuration()
+    M.config = vim.deepcopy(M.defaults)
     local json_path = M.find_coderun_json_path()
-    
     if json_path then
-        local file = io.open(json_path, "r")
-        if file then
-            local content = file:read("*all")
-            file:close()
-            local success, json_data = pcall(vim.fn.json_decode, content)
-            if success and type(json_data) == "table" then
-                local json_dir = vim.fn.fnamemodify(json_path, ":h")
-                if not vim.deep_equal(json_data, M.last_loaded_json) then
-                    M.show_confirmation_popup(json_data, json_path, json_dir)
+        M.coderun_dir = vim.fn.fnamemodify(json_path, ":h")
+        local json_config = M.load_json_config(json_path)
+        if json_config then
+            -- Process custom commands and keybinds
+            M.config.coderun_commands = {}
+            M.config.coderun_keybinds = {}
+            for _, entry in pairs(json_config) do
+                if entry.command and entry.keybind then
+                    M.config.coderun_commands[entry.keybind] = entry.command
+                    M.config.coderun_keybinds[entry.keybind] = entry.command
+                    log_debug("Loaded command from coderun.json: keybind=" .. entry.keybind .. ", command=" .. entry.command)
                 end
             end
+        else
+            log_debug("Failed to load json_config")
         end
     else
-        -- No JSON found, use default configuration
-        M.coderun_json_dir = nil
-        local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
-        M.bind_commands(default_commands)
+        M.coderun_dir = nil
+        log_debug("coderun.json not found during configuration load")
     end
 end
 
-
--- function M.show_confirmation_popup(json_data, json_path, file_dir)
---     if M.confirmation_popup then
---         M.confirmation_popup:unmount()
---     end
-
---     M.confirmation_popup = Popup({
---         enter = true,
---         focusable = true,
---         border = {
---             style = "rounded",
---             text = {
---                 top = " Confirm coderun.json ",
---                 top_align = "center",
---             },
---         },
---         position = "50%",
---         size = {
---             width = "80%",
---             height = "60%",
---         },
---         buf_options = {
---             modifiable = true,
---             readonly = false,
---             filetype = "markdown",
---         },
---     })
-
---     local function set_content()
---         local lines = {}
---         table.insert(lines, "A coderun.json file has been found at:")
---         table.insert(lines, "`" .. json_path .. "`")
---         table.insert(lines, "")
---         table.insert(lines, "Contents:")
---         table.insert(lines, "")
---         table.insert(lines, "```json")
-        
---         -- Read and format JSON content
---         local json_content = vim.fn.readfile(json_path)
---         for _, line in ipairs(json_content) do
---             table.insert(lines, line)
---         end
-        
---         table.insert(lines, "```")
---         table.insert(lines, "")
---         table.insert(lines, "Do you want to use this configuration?")
---         table.insert(lines, "Press 'y' to accept, 'n' to reject and use default configuration.")
-
---         local bufnr = M.confirmation_popup.bufnr
---         vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
---     end
-
---     M.confirmation_popup:mount()
---     set_content()
-
---     M.confirmation_popup:map("n", "y", function()
---         M.confirmation_popup:unmount()
---         M.coderun_json_dir = file_dir
---         M.last_loaded_json = json_data
---         M.bind_commands(json_data)
---         M.confirmation_popup = nil
---     end, { noremap = true })
-
---     M.confirmation_popup:map("n", "n", function()
---         M.confirmation_popup:unmount()
---         M.coderun_json_dir = nil
---         M.last_loaded_json = nil
---         local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
---         M.bind_commands(default_commands)
---         M.confirmation_popup = nil
---     end, { noremap = true })
-
---     M.confirmation_popup:on(event.BufLeave, function()
---         M.confirmation_popup:unmount()
---         M.confirmation_popup = nil
---     end)
--- end
-function M.show_confirmation_popup(json_data, json_path, file_dir)
-    if M.confirmation_popup then
-        M.confirmation_popup:unmount()
+-- Watch for changes in coderun.json
+function M.start_watching()
+    if M.watch_handle then
+        M.watch_handle:stop()
+        M.watch_handle:close()
+        M.watch_handle = nil
     end
 
-    local width = math.floor(vim.o.columns * 0.8)
-    local height = math.floor(vim.o.lines * 0.8)
+    local json_path = M.find_coderun_json_path()
+    if not json_path then return end
 
-    M.confirmation_popup = Popup({
-        enter = true,
-        focusable = true,
-        border = {
-            style = "rounded",
-            text = {
-                top = " Confirm coderun.json ",
-                top_align = "center",
-            },
-        },
-        position = {
-            row = math.floor((vim.o.lines - height) / 2),
-            col = math.floor((vim.o.columns - width) / 2),
-        },
-        size = {
-            width = width,
-            height = height,
-        },
-        buf_options = {
-            modifiable = true,
-            readonly = false,
-        },
-    })
-
-    local function set_content()
-        local lines = {}
-        table.insert(lines, "A coderun.json file has been found at:")
-        table.insert(lines, json_path)
-        table.insert(lines, "")
-        table.insert(lines, "Contents:")
-        table.insert(lines, "")
-        
-        -- Read and format JSON content
-        local json_content = vim.fn.readfile(json_path)
-        for _, line in ipairs(json_content) do
-            table.insert(lines, line)
-        end
-        
-        table.insert(lines, "")
-        table.insert(lines, "Do you want to use this configuration?")
-        table.insert(lines, "Press 'y' to accept, 'n' to reject and use default configuration.")
-
-        local bufnr = M.confirmation_popup.bufnr
-        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-    end
-
-    M.confirmation_popup:mount()
-    set_content()
-
-    M.confirmation_popup:map("n", "y", function()
-        M.confirmation_popup:unmount()
-        M.coderun_json_dir = file_dir
-        M.last_loaded_json = json_data
-        M.bind_commands(json_data)
-        M.confirmation_popup = nil
-    end, { noremap = true })
-
-    M.confirmation_popup:map("n", "n", function()
-        M.confirmation_popup:unmount()
-        M.coderun_json_dir = nil
-        M.last_loaded_json = nil
-        local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
-        M.bind_commands(default_commands)
-        M.confirmation_popup = nil
-    end, { noremap = true })
-
-    M.confirmation_popup:on(event.BufLeave, function()
-        M.confirmation_popup:unmount()
-        M.confirmation_popup = nil
-    end)
-end
-
-function M.complete_variables_in_commands(command)
-    local cmd = command
-    local values = {}
-
-    for var in string.gmatch(cmd, "`%${(.-)}%`") do
-        if not values[var] then
-            local value = vim.fn.input('Enter value for ' .. var .. ': ')
-            values[var] = value
-        end
-        cmd = cmd:gsub("`%${" .. var .. "}%`", values[var])
-    end
-    require('sky-term').send_to_term(cmd)
-end
-
-M.commands = {
-    java = "cd $dir && javac $fileName && java $fileNameWithoutExt",
-    python = "python3 -u $dir/$fileName",
-    typescript = "deno run $dir/$fileName",
-    rust = "cd $dir && rustc $fileName && $dir/$fileNameWithoutExt",
-    c = "cd $dir && gcc $fileName -o $fileNameWithoutExt && $dir/$fileNameWithoutExt",
-    cpp = "cd $dir && g++ $fileName -o $dir/$fileNameWithoutExt && $dir/$fileNameWithoutExt",
-    javascript = "node $dir/$fileName",
-    php = "php $dir/$fileName",
-    ruby = "ruby $dir/$fileName",
-    go = "go run $dir/$fileName",
-    perl = "perl $dir/$fileName",
-    bash = "bash $dir/$fileName",
-    lisp = "sbcl --script $dir/$fileName",
-    fortran = "cd $dir && gfortran $fileName -o $fileNameWithoutExt && $dir/$fileNameWithoutExt",
-    haskell = "runhaskell $dir/$fileName",
-    dart = "dart run $dir/$fileName",
-    pascal = "cd $dir && fpc $fileName && $dir/$fileNameWithoutExt",
-    nim = "nim compile --run $dir/$fileName"
-}
-
-M.extensions = {
-    python = { "py" },
-    java = { "java" },
-    typescript = { "ts" },
-    rust = { "rs" },
-    c = { "c" },
-    cpp = { "cpp", "cxx", "hpp", "hxx" },
-    javascript = { "js" },
-    php = { "php" },
-    ruby = { "rb" },
-    go = { "go" },
-    perl = { "pl" },
-    bash = { "sh" },
-    lisp = { "lisp" },
-    fortran = { "f", "f90" },
-    haskell = { "hs" },
-    dart = { "dart" },
-    pascal = { "pas" },
-    nim = { "nim" }
-}
-
-function M.generate_commands_table(file_extension)
-    local commands_table = {}
-    for language, extensions in pairs(M.extensions) do
-        for _, extension in ipairs(extensions) do
-            if extension == file_extension then
-                commands_table["run " .. language .. " project"] = {
-                    command = M.commands[language],
-                    keybind = M.opts.keymap
-                }
-            end
-        end
-    end
-    return commands_table
-end
-
-function M.setup(opts)
-    M.opts = opts or {}
-    M.opts.keymap = M.opts.keymap or '<F5>'
-
-    if M.opts.commands then
-        for k, v in pairs(M.opts.commands) do
-            M.commands[k] = v
-        end
-    end
-    if M.opts.extensions then
-        for k, v in pairs(M.opts.extensions) do
-            M.extensions[k] = v
-        end
-    end
-
-    M.last_loaded_json = nil
-    M.load_json()
-
-    M.opts.interrupt_keymap = M.opts.interrupt_keymap or '<F2>'
-    local modes = { 'n', 'i', 'v', 't' }
-    for _, mode in ipairs(modes) do
-        vim.api.nvim_set_keymap(mode, M.opts.interrupt_keymap,
-            "<Cmd>lua require('code-runner').send_interrupt()<CR>",
-            { noremap = true, silent = true })
-    end
-
-    -- Start watching coderun.json
-    M.start_watching_coderun_json()
-end
-
-function M.start_watching_coderun_json()
-    M.last_modified_time = 0
-    M.watch_timer = vim.loop.new_timer()
-    
-    M.watch_timer:start(0, 1000, vim.schedule_wrap(function()
-        local json_path = M.find_coderun_json_path()
-        if json_path then
-            local stat = vim.loop.fs_stat(json_path)
-            if stat and stat.mtime.sec > M.last_modified_time then
-                M.last_modified_time = stat.mtime.sec
-                M.load_json()
-            end
-        elseif M.last_loaded_json then
-            -- Reset to default if JSON file is removed
-            M.coderun_json_dir = nil
-            M.last_loaded_json = nil
-            local default_commands = M.generate_commands_table(vim.fn.expand("%:e"))
-            M.bind_commands(default_commands)
-        end
+    M.watch_handle = uv.new_fs_event()
+    M.watch_handle:start(json_path, {}, vim.schedule_wrap(function()
+        vim.notify("coderun.json changed. Reloading configuration...", vim.log.levels.INFO)
+        M.load_configuration()
+        M.set_keymaps()
     end))
 end
 
+-- Set up autocmds to reload configuration on buffer enter and leave
+function M.setup_autocmds()
+    -- Create an augroup to prevent duplicate autocmds
+    vim.cmd([[
+        augroup CodeRunnerAutocmds
+            autocmd!
+            autocmd BufEnter,BufLeave * lua require('code-runner').on_buffer_event()
+        augroup END
+    ]])
+end
+
+-- Function to handle buffer events
+function M.on_buffer_event()
+    log_debug("Buffer event triggered. Reloading configuration.")
+    M.load_configuration()
+    M.set_keymaps()
+end
+
+-- Setup function
+function M.setup(user_opts)
+    M.defaults = merge_tables(M.defaults, user_opts)
+    M.config = vim.deepcopy(M.defaults)
+    M.load_configuration()
+    M.set_keymaps()
+    M.start_watching()
+    M.setup_autocmds() -- Set up the autocmds
+end
 
 return M
