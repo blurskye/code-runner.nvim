@@ -1,335 +1,277 @@
+-- lua/code_runner.lua
+
 local M = {}
-local function table_to_string(data, indent)
-    if not data then
-        return ""
-    end
+local uv = vim.loop
+local Job = require('plenary.job') -- We'll use plenary for asynchronous job handling
 
-    local str = ""
-    for k, v in pairs(data) do
-        if type(v) == "table" then
-            str = str .. string.rep(" ", indent) .. "- " .. table_to_string(v, indent + 2) .. "\n"
+-- Default configurations
+M.defaults = {
+    keymap = '<F5>', -- Keymap to run the code
+    interrupt_keymap = '<F2>', -- Keymap to interrupt the running code
+    commands = {
+        python = "python3 -u \"$dir/$fileName\"",
+        java = "cd \"$dir\" && javac \"$fileName\" && java \"$fileNameWithoutExt\"",
+        typescript = "deno run \"$dir/$fileName\"",
+        rust = "cargo run",
+        c = "cd \"$dir\" && gcc \"$fileName\" -o \"$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
+        cpp = "cd \"$dir\" && g++ \"$fileName\" -o \"$dir/$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
+        javascript = "node \"$dir/$fileName\"",
+        php = "php \"$dir/$fileName\"",
+        ruby = "ruby \"$dir/$fileName\"",
+        go = "go run \"$dir/$fileName\"",
+        perl = "perl \"$dir/$fileName\"",
+        bash = "bash \"$dir/$fileName\"",
+        lisp = "sbcl --script \"$dir/$fileName\"",
+        fortran = "cd \"$dir\" && gfortran \"$fileName\" -o \"$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
+        haskell = "runhaskell \"$dir/$fileName\"",
+        dart = "dart run \"$dir/$fileName\"",
+        pascal = "cd \"$dir\" && fpc \"$fileName\" && \"$dir/$fileNameWithoutExt\"",
+        nim = "nim compile --run \"$dir/$fileName\""
+    },
+    extensions = {
+        python = { "py" },
+        java = { "java" },
+        typescript = { "ts" },
+        rust = { "rs" },
+        c = { "c" },
+        cpp = { "cpp", "cxx", "hpp", "hxx" },
+        javascript = { "js" },
+        php = { "php" },
+        ruby = { "rb" },
+        go = { "go" },
+        perl = { "pl" },
+        bash = { "sh" },
+        lisp = { "lisp" },
+        fortran = { "f", "f90" },
+        haskell = { "hs" },
+        dart = { "dart" },
+        pascal = { "pas" },
+        nim = { "nim" }
+    }
+}
+
+M.config = {}
+
+-- Function to merge user options with defaults
+local function merge_tables(default, user)
+    if not user then return default end
+    for k, v in pairs(user) do
+        if type(v) == "table" and type(default[k] or false) == "table" then
+            merge_tables(default[k], v)
         else
-            str = str .. string.rep(" ", indent) .. tostring(v) .. "\n"
+            default[k] = v
         end
     end
-
-    return str
+    return default
 end
 
--- function M.unbind_commands(json_data)
---     for _, data in pairs(json_data) do
---         if vim.api.nvim_get_keymap('n')[data.key] then
---             vim.api.nvim_del_keymap('n', data.key)
---         end
---     end
--- end
-
-function M.unbind_commands(json_data)
-    if (json_data) then
-        for _, v in pairs(json_data) do
-            if v.command and v.keybind then
-                -- Unbind the keymap in normal mode
-                vim.api.nvim_set_keymap('n', v.keybind, '', { noremap = true, silent = true })
-            end
+-- Find the path to coderun.json by searching up the directory tree
+function M.find_coderun_json_path(start_path)
+    local path = start_path or vim.fn.expand("%:p:h")
+    while path ~= "/" and path ~= "." do
+        local json_path = path .. "/coderun.json"
+        if vim.fn.filereadable(json_path) == 1 then
+            return json_path
         end
+        path = vim.fn.fnamemodify(path, ":h")
     end
-end
-
--- function M.bind_commands(json_data)
---     if (json_data) then
---         for _, v in pairs(json_data) do
---             if v.command and v.keybind then
---                 local file_buffer = vim.api.nvim_buf_get_name(0)
---                 local file_path = '"' .. file_buffer .. '"'
-
---                 local file_dir = vim.fn.fnamemodify(file_path, ":h")
---                 local file_name = vim.fn.fnamemodify(file_path, ":t")
---                 local file_name_without_ext = vim.fn.fnamemodify(file_path, ":r:t")
---                 local file_extension = vim.fn.fnamemodify(file_path, ":e")
-
---                 local cmd = v.command
---                 cmd = cmd:gsub("$dir", file_dir)
---                 cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
---                 cmd = cmd:gsub("$fileName", file_name)
---                 cmd = cmd:gsub("$fileExtension", file_extension)
---                 cmd = cmd:gsub("$filePath", file_path)
-
-
-
---                 vim.api.nvim_set_keymap('n', v.keybind,
---                     ":TermExec cmd='" .. cmd .. "'<CR>",
---                     { noremap = true, silent = true })
---             end
---         end
---     end
--- end
--- function M.bind_commands(json_data)
---     if (json_data) then
---         for _, v in pairs(json_data) do
---             if v.command and v.keybind then
---                 local file_buffer = vim.api.nvim_buf_get_name(0)
---                 local file_path = file_buffer
-
---                 local file_dir = vim.fn.fnamemodify(file_path, ":h")
---                 local file_name = vim.fn.fnamemodify(file_path, ":t")
---                 local file_name_without_ext = vim.fn.fnamemodify(file_path, ":r:t")
---                 local file_extension = vim.fn.fnamemodify(file_path, ":e")
-
---                 local cmd = v.command
---                 cmd = cmd:gsub("$dir", file_dir)
---                 cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
---                 cmd = cmd:gsub("$fileName", file_name)
---                 cmd = cmd:gsub("$fileExtension", file_extension)
---                 cmd = cmd:gsub("$filePath", file_path)
-
---                 vim.api.nvim_set_keymap('n', v.keybind,
---                     ":TermExec cmd='" .. cmd .. "'<CR>",
---                     { noremap = true, silent = true })
---             end
---         end
---     end
--- end
-
-
--- function M.bind_commands(json_data)
---     if (json_data) then
---         for _, v in pairs(json_data) do
---             if v.command and v.keybind then
---                 local file_buffer = vim.api.nvim_buf_get_name(0)
-
---                 local file_path = '"' .. file_buffer .. '"'
---                 local file_dir = '"' .. vim.fn.fnamemodify(file_buffer, ":h") .. '"'
---                 local file_name = '"' .. vim.fn.fnamemodify(file_buffer, ":t") .. '"'
---                 local file_name_without_ext = '"' .. vim.fn.fnamemodify(file_buffer, ":t:r") .. '"'
---                 local file_extension = '"' .. vim.fn.fnamemodify(file_buffer, ":e") .. '"'
-
---                 local cmd = v.command
---                 cmd = cmd:gsub("$dir", file_dir)
---                 cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
---                 cmd = cmd:gsub("$fileName", file_name)
---                 cmd = cmd:gsub("$fileExtension", file_extension)
---                 cmd = cmd:gsub("$filePath", file_path)
-
---                 vim.api.nvim_set_keymap('n', v.keybind,
---                     ":TermExec cmd='" .. cmd .. "'<CR>",
---                     { noremap = true, silent = true })
---             end
---         end
---     end
--- end
-function M.adjust_command_path()
-    local data = M.coderun_json -- Accessing cached loaded data
-
-    if data then
-        return data.dir or vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h") -- Use data.dir or current dir
-    end
-
-    return vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":h") -- Default to current dir
-end
-
-local function keybind_exists(keybind)
-    local keymaps = vim.api.nvim_get_keymap('n') -- 'n' for normal mode
-    for _, map in pairs(keymaps) do
-        if map.lhs == keybind then
-            return true
-        end
-    end
-    return false
-end
-function M.bind_commands(json_data)
-    if (json_data) then
-        for _, v in pairs(json_data) do
-            if v.command and v.keybind then
-                local file_buffer = vim.api.nvim_buf_get_name(0)
-
-                -- local file_path = '"' .. file_buffer .. '"'
-                local file_path = '"' .. M.adjust_command_path() .. '"'
-                local file_dir = '"' .. vim.fn.fnamemodify(file_buffer, ":h") .. '"'
-                local file_name = '"' .. vim.fn.fnamemodify(file_buffer, ":t") .. '"'
-                local file_name_without_ext = '"' .. vim.fn.fnamemodify(file_buffer, ":t:r") .. '"'
-                local file_extension = '"' .. vim.fn.fnamemodify(file_buffer, ":e") .. '"'
-
-                local cmd = v.command
-                cmd = cmd:gsub("$dir", file_dir)
-                cmd = cmd:gsub("$fileNameWithoutExt", file_name_without_ext)
-                cmd = cmd:gsub("$fileName", file_name)
-                cmd = cmd:gsub("$fileExtension", file_extension)
-                cmd = cmd:gsub("$filePath", file_path)
-
-
-
-                -- Check if the keybind already exists
-                -- local exists = keybind_exists(v.keybind)
-
-                if true then
-                    -- Keybind doesn't exist, safe to bind it
-                    vim.api.nvim_set_keymap('n', v.keybind,
-                        ":TermExec cmd='" .. cmd .. "'<CR>",
-                        { noremap = true, silent = true })
-                else
-                    -- Keybind already exists, handle appropriately
-                    print("Keybind " .. v.keybind .. " already exists! Skipping binding.")
-                end
-            end
-        end
-    end
-end
-
-function M.load_json()
-    local bufnr = vim.api.nvim_win_get_buf(0)
-    local file_path = vim.api.nvim_buf_get_name(bufnr)
-    local file_dir = vim.fn.fnamemodify(file_path, ":h")
-    local root_dir = "/"
-
-    while file_dir ~= root_dir do
-        local json_path = file_dir .. "/coderun.json"
-        local file = io.open(json_path, "r")
-
-        if file then
-            local content = file:read("*all")
-            file:close()
-
-            local data = vim.fn.json_decode(content)
-
-            -- Return the whole JSON data as a Lua table
-            return data
-        end
-
-        local parent_dir = vim.fn.fnamemodify(file_dir, ":h")
-        if parent_dir == file_dir then -- We've reached the root directory
-            break
-        end
-        file_dir = parent_dir
-    end
-
     return nil
 end
 
-M.commands = {
-    java = "cd $dir && javac $fileName && java $fileNameWithoutExt",
-    python = "python3 -u $dir/$fileName",
-    typescript = "deno run $dir/$fileName",
-    rust = "cd $dir && rustc $fileName && $dir/$fileNameWithoutExt",
-    c = "cd $dir && gcc $fileName -o $fileNameWithoutExt && $dir/$fileNameWithoutExt",
-    cpp = "cd $dir && g++ $fileName -o $dir/$fileNameWithoutExt && $dir/$fileNameWithoutExt",
-    javascript = "node $dir/$fileName",
-    php = "php $dir/$fileName",
-    ruby = "ruby $dir/$fileName",
-    go = "go run $dir/$fileName",
-    perl = "perl $dir/$fileName",
-    bash = "bash $dir/$fileName",
-    lisp = "sbcl --script $dir/$fileName",
-    fortran = "cd $dir && gfortran $fileName -o $fileNameWithoutExt && $dir/$fileNameWithoutExt",
-    haskell = "runhaskell $dir/$fileName",
-    dart = "dart run $dir/$fileName",
-    pascal = "cd $dir && fpc $fileName && $dir/$fileNameWithoutExt",
-    nim = "nim compile --run $dir/$fileName"
-}
+-- Load JSON configuration from coderun.json
+function M.load_json_config(json_path)
+    local file, err = io.open(json_path, "r")
+    if not file then
+        vim.notify("Error opening coderun.json: " .. err, vim.log.levels.ERROR)
+        return {}
+    end
+    local content = file:read("*all")
+    file:close()
+    local success, json_data = pcall(vim.fn.json_decode, content)
+    if not success then
+        vim.notify("Failed to parse coderun.json", vim.log.levels.ERROR)
+        return {}
+    end
+    return json_data
+end
 
-M.extensions = {
-    python = { "py" },
-    java = { "java" },
-    typescript = { "ts" },
-    rust = { "rs" },
-    c = { "c" },
-    cpp = { "cpp", "cxx", "hpp", "hxx" },
-    javascript = { "js" },
-    php = { "php" },
-    ruby = { "rb" },
-    go = { "go" },
-    perl = { "pl" },
-    bash = { "sh" },
-    lisp = { "lisp" },
-    fortran = { "f", "f90" },
-    haskell = { "hs" },
-    dart = { "dart" },
-    pascal = { "pas" },
-    nim = { "nim" }
-}
-function M.generate_commands_table(file_extension)
-    local commands_table = {}
-    for language, extensions in pairs(M.extensions) do
-        for _, extension in ipairs(extensions) do
-            if extension == file_extension then
-                commands_table["run " .. language .. " project"] = {
-                    command = M.commands[language],
-                    keybind = M.opts.keymap
-                }
+-- Generate command based on the current file and configuration
+function M.generate_command(config)
+    local bufnr = vim.api.nvim_get_current_buf()
+    local file_path = vim.api.nvim_buf_get_name(bufnr)
+    local file_dir = vim.fn.fnamemodify(file_path, ":h")
+    local file_name = vim.fn.fnamemodify(file_path, ":t")
+    local file_name_without_ext = vim.fn.fnamemodify(file_path, ":t:r")
+    local file_extension = vim.fn.fnamemodify(file_path, ":e")
+
+    local cmd = config.command
+        :gsub("$dir", file_dir)
+        :gsub("$fileName", file_name)
+        :gsub("$fileNameWithoutExt", file_name_without_ext)
+        :gsub("$fileExtension", file_extension)
+        :gsub("$filePath", file_path)
+
+    return cmd
+end
+
+-- Run the generated command asynchronously
+function M.run_command(cmd)
+    if M.current_job and M.current_job:is_running() then
+        vim.notify("A job is already running. Press interrupt key to stop it.", vim.log.levels.WARN)
+        return
+    end
+
+    vim.notify("Running: " .. cmd, vim.log.levels.INFO)
+
+    -- Open a new split terminal
+    vim.cmd("split")
+    vim.cmd("terminal")
+    local term_buf = vim.api.nvim_get_current_buf()
+
+    -- Start the job
+    M.current_job = Job:new({
+        command = "bash",
+        args = { "-c", cmd },
+        on_exit = function(j, return_val)
+            vim.schedule(function()
+                vim.api.nvim_buf_set_lines(term_buf, -1, -1, false, { "\nProcess exited with code " .. return_val })
+                vim.api.nvim_buf_set_option(term_buf, "modifiable", false)
+                vim.notify("Process exited with code " .. return_val, vim.log.levels.INFO)
+            end)
+        end,
+        on_stdout = function(j, data)
+            if data then
+                vim.schedule(function()
+                    vim.api.nvim_buf_set_lines(term_buf, -1, -1, false, { data })
+                end)
+            end
+        end,
+        on_stderr = function(j, data)
+            if data then
+                vim.schedule(function()
+                    vim.api.nvim_buf_set_lines(term_buf, -1, -1, false, { data })
+                end)
+            end
+        end,
+    }):start()
+end
+
+-- Interrupt the running job
+function M.send_interrupt()
+    if M.current_job and M.current_job:is_running() then
+        M.current_job:stop()
+        vim.notify("Job interrupted", vim.log.levels.INFO)
+    else
+        vim.notify("No running job to interrupt", vim.log.levels.WARN)
+    end
+end
+
+-- Set up keybindings
+function M.set_keymaps()
+    local keymap = M.config.keymap
+    local interrupt_keymap = M.config.interrupt_keymap
+
+    -- Unmap existing keymaps to avoid duplicates
+    vim.api.nvim_set_keymap('n', keymap, '', { noremap = true, silent = true })
+    vim.api.nvim_set_keymap('n', interrupt_keymap, '', { noremap = true, silent = true })
+
+    -- Bind the run key
+    vim.api.nvim_set_keymap('n', keymap, "<Cmd>lua require('code_runner').run()<CR>", { noremap = true, silent = true })
+
+    -- Bind the interrupt key
+    vim.api.nvim_set_keymap('n', interrupt_keymap, "<Cmd>lua require('code_runner').send_interrupt()<CR>", { noremap = true, silent = true })
+end
+
+-- Run the code
+function M.run()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local file_path = vim.api.nvim_buf_get_name(bufnr)
+    if file_path == "" then
+        vim.notify("No file is currently open.", vim.log.levels.WARN)
+        return
+    end
+
+    local file_extension = vim.fn.fnamemodify(file_path, ":e")
+    local language = nil
+
+    -- Find the language based on the file extension
+    for lang, exts in pairs(M.config.extensions) do
+        for _, ext in ipairs(exts) do
+            if ext == file_extension then
+                language = lang
+                break
             end
         end
+        if language then break end
     end
-    return commands_table
+
+    if not language then
+        vim.notify("Unsupported file extension: " .. file_extension, vim.log.levels.ERROR)
+        return
+    end
+
+    -- Get the command for the language
+    local command = M.config.commands[language]
+    if not command then
+        vim.notify("No command configured for language: " .. language, vim.log.levels.ERROR)
+        return
+    end
+
+    local cmd = M.generate_command({ command = command })
+    M.run_command(cmd)
 end
 
-function M.setup(opts)
-    M.opts = opts or {}
-    M.opts.keymap = M.opts.keymap or '<F5>'
-
-    -- Overwrite the default commands and extensions with the user-provided commands
-    if M.opts.commands then
-        for k, v in pairs(M.opts.commands) do
-            M.commands[k] = v
-        end
-    end
-    if M.opts.extensions then
-        for k, v in pairs(M.opts.extensions) do
-            M.extensions[k] = v
-        end
-    end
-
-    if M.opts.run_tmux ~= false then
-        vim.cmd("TermExec cmd='tmux new-session -A -s nvim'")
-        vim.cmd("ToggleTerm")
-    end
-    M.coderun_json = M.load_json()
-    -- if (M.json_data) then
-    --     M.bind_commands(M.json_data)
-    -- else
-    --     local file_extension = vim.fn.expand("%:e")
-    --     M.bind_commands(M.generate_commands_table(file_extension))
-    -- end
-    if (M.coderun_json) then
-        M.bind_commands(M.coderun_json)
+-- Load configuration (defaults overridden by coderun.json if available)
+function M.load_configuration()
+    local current_dir = vim.fn.expand("%:p:h")
+    local json_path = M.find_coderun_json_path(current_dir)
+    if json_path then
+        local json_config = M.load_json_config(json_path)
+        merge_tables(M.config, json_config)
     else
-        M.coderun_json = M.generate_commands_table(vim.fn.expand("%:e"))
-        M.bind_commands(M.coderun_json)
-    end
-    vim.api.nvim_exec([[
-            augroup CodeRunner
-                autocmd!
-                autocmd BufEnter * lua require('code-runner').handle_buffer_enter()
-                autocmd BufLeave * lua require('code-runner').handle_buffer_exit()
-                augroup END
-                ]], false)
-end
-
-function M.handle_buffer_enter()
-    local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
-    if buftype ~= 'terminal' and buftype ~= 'nofile' and buftype == '' then
-        M.coderun_json = M.load_json()
-        M.json_data = M.load_json()
-        -- print(M.table_to_string(M.json_data))
-
-        if (M.coderun_json) then
-            M.bind_commands(M.coderun_json)
-        else
-            M.coderun_json = M.generate_commands_table(vim.fn.expand("%:e"))
-            M.bind_commands(M.coderun_json)
-        end
+        merge_tables(M.config, M.defaults)
     end
 end
 
-function M.handle_buffer_exit()
-    local buftype = vim.api.nvim_buf_get_option(0, 'buftype')
-    print("buff type if (" .. buftype .. ")")
-    if buftype == 'nofile' or buftype == '' then
-        if M.coderun_json then
-            M.unbind_commands(M.coderun_json)
-        else
-            local file_extension = vim.fn.expand("%:e")
-            M.bind_commands(M.generate_commands_table(file_extension))
-        end
+-- Setup function to initialize the plugin
+function M.setup(user_opts)
+    -- Merge user options with defaults
+    merge_tables(M.defaults, user_opts)
+    M.config = vim.deepcopy(M.defaults)
+
+    -- Load configurations (including coderun.json if present)
+    M.load_configuration()
+
+    -- Set keybindings
+    M.set_keymaps()
+
+    -- Watch for changes in coderun.json
+    M.start_watching()
+end
+
+-- Start watching for changes in coderun.json
+function M.start_watching()
+    local json_path = M.find_coderun_json_path()
+    if not json_path then return end
+
+    if M.fs_event then
+        M.fs_event:stop()
+        M.fs_event:close()
     end
+
+    M.fs_event = uv.new_fs_event()
+    M.fs_event:start(json_path, {}, vim.schedule_wrap(function(err, filename, events)
+        if err then
+            vim.notify("Error watching coderun.json: " .. err, vim.log.levels.ERROR)
+            return
+        end
+        if events.change then
+            vim.notify("coderun.json changed. Reloading configuration...", vim.log.levels.INFO)
+            M.config = vim.deepcopy(M.defaults)
+            M.load_configuration()
+            M.set_keymaps()
+        end
+    end))
 end
 
 return M
