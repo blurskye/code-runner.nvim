@@ -394,6 +394,21 @@ function M.generate_command(command_template)
 end
 
 -- Run the command
+-- function M.run_command(cmd)
+--     if M.lock then
+--         vim.notify("CodeRunner is busy. Please wait...", vim.log.levels.WARN)
+--         return
+--     end
+
+--     M.lock = true
+--     vim.cmd("SendToSkyTerm " .. cmd)
+--     if (M.debug) then
+--         vim.notify("Running: " .. cmd, vim.log.levels.INFO)
+--     end
+--     vim.defer_fn(function()
+--         M.lock = false
+--     end, 1000)
+-- end
 function M.run_command(cmd)
     if M.lock then
         vim.notify("CodeRunner is busy. Please wait...", vim.log.levels.WARN)
@@ -401,10 +416,19 @@ function M.run_command(cmd)
     end
 
     M.lock = true
+    
+    -- If we have a coderun directory, prepend cd command
+    if M.coderun_dir then
+        -- Escape spaces in path
+        local escaped_dir = M.coderun_dir:gsub(" ", "\\ ")
+        cmd = "cd " .. escaped_dir .. " && " .. cmd
+    end
+
     vim.cmd("SendToSkyTerm " .. cmd)
     if (M.debug) then
         vim.notify("Running: " .. cmd, vim.log.levels.INFO)
     end
+    
     vim.defer_fn(function()
         M.lock = false
     end, 1000)
