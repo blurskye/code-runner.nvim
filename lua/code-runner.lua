@@ -63,7 +63,7 @@ function M.find_coderun_json_path()
     return nil
 end
 
-Show prompt to accept or reject coderun.json
+-- Show prompt to accept or reject coderun.json
 local function show_accept_prompt(json_path, content, hash, callback)
     local Popup = require('nui.popup')
     local event = require('nui.utils.autocmd').event
