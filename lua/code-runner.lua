@@ -11,7 +11,7 @@ M.defaults = {
         typescript = "deno run \"$dir/$fileName\"",
         rust = "cd \"$dir\" && rustc \"$fileName\" && \"$dir/$fileNameWithoutExt\"",
         c = "cd \"$dir\" && gcc \"$fileName\" -o \"$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
-        cpp = "cd \"$dir\" && g++ \"$fileName\" -o \"$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
+        cpp = "cd \"$dir\" && g++ \"$fileName\" -o \"$dir/$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
         javascript = "node \"$dir/$fileName\"",
         php = "php \"$dir/$fileName\"",
         ruby = "ruby \"$dir/$fileName\"",
@@ -172,9 +172,14 @@ end
 
 -- Set up keybindings
 function M.set_keymaps()
-    -- Clear previous keymaps
-    vim.api.nvim_del_keymap('n', M.config.keymap)
-    vim.api.nvim_del_keymap('n', M.config.interrupt_keymap)
+    -- Clear previous keymaps if they exist
+    if M.config.keymap and vim.fn.maparg(M.config.keymap, 'n') ~= '' then
+        vim.api.nvim_del_keymap('n', M.config.keymap)
+    end
+
+    if M.config.interrupt_keymap and vim.fn.maparg(M.config.interrupt_keymap, 'n') ~= '' then
+        vim.api.nvim_del_keymap('n', M.config.interrupt_keymap)
+    end
 
     -- Bind the run key
     vim.api.nvim_set_keymap('n', M.config.keymap, "<Cmd>lua require('code-runner').run()<CR>", { noremap = true, silent = true })
