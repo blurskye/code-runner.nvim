@@ -3,15 +3,15 @@ local uv = vim.loop
 
 -- Default configurations
 M.defaults = {
-        keymap = '<F5>',
-        interrupt_keymap = '<F2>',
-        commands = {
+    keymap = '<F5>',
+    interrupt_keymap = '<F2>',
+    commands = {
         python = "python3 -u \"$dir/$fileName\"",
         java = "cd \"$dir\" && javac \"$fileName\" && java \"$fileNameWithoutExt\"",
         typescript = "deno run \"$dir/$fileName\"",
-        rust = "cargo run",
+        rust = "cd \"$dir\" && rustc \"$fileName\" && \"$dir/$fileNameWithoutExt\"",
         c = "cd \"$dir\" && gcc \"$fileName\" -o \"$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
-        cpp = "cd \"$dir\" && g++ \"$fileName\" -o \"$dir/$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
+        cpp = "cd \"$dir\" && g++ \"$fileName\" -o \"$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
         javascript = "node \"$dir/$fileName\"",
         php = "php \"$dir/$fileName\"",
         ruby = "ruby \"$dir/$fileName\"",
@@ -45,48 +45,6 @@ M.defaults = {
         pascal = { "pas" },
         nim = { "nim" }
     }
-}
-M.default_commands = {
-    python = "python3 -u \"$dir/$fileName\"",
-    java = "cd \"$dir\" && javac \"$fileName\" && java \"$fileNameWithoutExt\"",
-    typescript = "deno run \"$dir/$fileName\"",
-    rust = "cd \"$dir\" && rustc \"$fileName\" && \"$dir/$fileNameWithoutExt\"",
-    c = "cd \"$dir\" && gcc \"$fileName\" -o \"$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
-    cpp = "cd \"$dir\" && g++ \"$fileName\" -o \"$dir/$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
-    javascript = "node \"$dir/$fileName\"",
-    php = "php \"$dir/$fileName\"",
-    ruby = "ruby \"$dir/$fileName\"",
-    go = "go run \"$dir/$fileName\"",
-    perl = "perl \"$dir/$fileName\"",
-    bash = "bash \"$dir/$fileName\"",
-    lisp = "sbcl --script \"$dir/$fileName\"",
-    fortran = "cd \"$dir\" && gfortran \"$fileName\" -o \"$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
-    haskell = "runhaskell \"$dir/$fileName\"",
-    dart = "dart run \"$dir/$fileName\"",
-    pascal = "cd \"$dir\" && fpc \"$fileName\" && \"$dir/$fileNameWithoutExt\"",
-    nim = "nim compile --run \"$dir/$fileName\""
-}
-
--- Default extensions per language
-M.default_extensions = {
-    python = { "py" },
-    java = { "java" },
-    typescript = { "ts" },
-    rust = { "rs" },
-    c = { "c" },
-    cpp = { "cpp", "cxx", "hpp", "hxx" },
-    javascript = { "js" },
-    php = { "php" },
-    ruby = { "rb" },
-    go = { "go" },
-    perl = { "pl" },
-    bash = { "sh" },
-    lisp = { "lisp" },
-    fortran = { "f", "f90" },
-    haskell = { "hs" },
-    dart = { "dart" },
-    pascal = { "pas" },
-    nim = { "nim" }
 }
 
 M.config = {}
@@ -138,6 +96,7 @@ function M.generate_command(command_template)
     local file_name = vim.fn.fnamemodify(file_path, ":t")
     local file_name_without_ext = vim.fn.fnamemodify(file_path, ":t:r")
     local file_extension = vim.fn.fnamemodify(file_path, ":e")
+    local coderun_dir = M.coderun_dir or file_dir
 
     local cmd = command_template
         :gsub("$dir", file_dir)
@@ -145,6 +104,7 @@ function M.generate_command(command_template)
         :gsub("$fileNameWithoutExt", file_name_without_ext)
         :gsub("$fileExtension", file_extension)
         :gsub("$filePath", file_path)
+        :gsub("$coderunDir", coderun_dir)
 
     return cmd
 end
@@ -241,11 +201,12 @@ function M.load_configuration()
     M.config = vim.deepcopy(M.defaults)
     local json_path = M.find_coderun_json_path()
     if json_path then
+        M.coderun_dir = vim.fn.fnamemodify(json_path, ":h")
         local json_config = M.load_json_config(json_path)
         if json_config then
             -- Process custom commands and keybinds
             M.config.custom_keybinds = {}
-            for _, entry in pairs(json_config) do
+            for name, entry in pairs(json_config) do
                 table.insert(M.config.custom_keybinds, {
                     command = entry.command,
                     keybind = entry.keybind
@@ -275,7 +236,7 @@ end
 
 -- Setup function
 function M.setup(user_opts)
-    merge_tables(M.defaults, user_opts)
+    M.defaults = merge_tables(M.defaults, user_opts)
     M.load_configuration()
     M.set_keymaps()
     M.start_watching()
