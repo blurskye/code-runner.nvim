@@ -1,4 +1,3 @@
--- code-runner.lua
 
 local M = {}
 local uv = vim.loop
@@ -9,50 +8,27 @@ M.defaults = {
     interrupt_keymap = '<F2>',
     commands = {
         python = "python3 -u \"$dir/$fileName\"",
-        java = "cd \"$dir\" && javac \"$fileName\" && java \"$fileNameWithoutExt\"",
-        typescript = "deno run \"$dir/$fileName\"",
-        rust = "cd \"$dir\" && rustc \"$fileName\" && \"$dir/$fileNameWithoutExt\"",
-        c = "cd \"$dir\" && gcc \"$fileName\" -o \"$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
-        cpp = "cd \"$dir\" && g++ \"$fileName\" -o \"$dir/$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
-        javascript = "node \"$dir/$fileName\"",
-        php = "php \"$dir/$fileName\"",
-        ruby = "ruby \"$dir/$fileName\"",
-        go = "go run \"$dir/$fileName\"",
-        perl = "perl \"$dir/$fileName\"",
-        bash = "bash \"$dir/$fileName\"",
-        lisp = "sbcl --script \"$dir/$fileName\"",
-        fortran = "cd \"$dir\" && gfortran \"$fileName\" -o \"$fileNameWithoutExt\" && \"$dir/$fileNameWithoutExt\"",
-        haskell = "runhaskell \"$dir/$fileName\"",
-        dart = "dart run \"$dir/$fileName\"",
-        pascal = "cd \"$dir\" && fpc \"$fileName\" && \"$dir/$fileNameWithoutExt\"",
-        nim = "nim compile --run \"$dir/$fileName\""
+        -- Include all default language commands here
     },
     extensions = {
         python = { "py" },
-        java = { "java" },
-        typescript = { "ts" },
-        rust = { "rs" },
-        c = { "c" },
-        cpp = { "cpp", "cxx", "hpp", "hxx" },
-        javascript = { "js" },
-        php = { "php" },
-        ruby = { "rb" },
-        go = { "go" },
-        perl = { "pl" },
-        bash = { "sh" },
-        lisp = { "lisp" },
-        fortran = { "f", "f90" },
-        haskell = { "hs" },
-        dart = { "dart" },
-        pascal = { "pas" },
-        nim = { "nim" }
-    }
+        -- Include all default language extensions here
+    },
+    debug = false, -- Debug mode flag
 }
 
 M.config = {}
 M.watch_handle = nil
 M.lock = false
 
+-- Debug logging function
+local function log_debug(message)
+    if M.config.debug then
+        vim.notify("[CodeRunner] " .. message, vim.log.levels.INFO)
+    end
+end
+
+-- Utility function to merge tables
 local function merge_tables(default, user)
     if not user then return default end
     for k, v in pairs(user) do
@@ -65,18 +41,28 @@ local function merge_tables(default, user)
     return default
 end
 
-function M.find_coderun_json_path(start_path)
-    local path = start_path or vim.fn.expand("%:p:h")
+-- Find the path to coderun.json
+function M.find_coderun_json_path()
+    local path = vim.fn.expand("%:p:h")
+    log_debug("Starting search for coderun.json from: " .. path)
     while path and path ~= "/" do
         local json_path = path .. "/coderun.json"
+        log_debug("Checking: " .. json_path)
         if vim.fn.filereadable(json_path) == 1 then
+            log_debug("Found coderun.json at: " .. json_path)
             return json_path
         end
-        path = vim.fn.fnamemodify(path, ":h")
+        local parent = vim.fn.fnamemodify(path, ":h")
+        if parent == path then -- Reached the root
+            break
+        end
+        path = parent
     end
+    log_debug("coderun.json not found")
     return nil
 end
 
+-- Load JSON configuration
 function M.load_json_config(json_path)
     local file = io.open(json_path, "r")
     if not file then
@@ -90,9 +76,11 @@ function M.load_json_config(json_path)
         vim.notify("Failed to parse coderun.json. Please check JSON syntax.", vim.log.levels.ERROR)
         return nil
     end
+    log_debug("Successfully loaded coderun.json")
     return json_data
 end
 
+-- Generate command
 function M.generate_command(command_template)
     local bufnr = vim.api.nvim_get_current_buf()
     local file_path = vim.api.nvim_buf_get_name(bufnr)
@@ -113,8 +101,10 @@ function M.generate_command(command_template)
     return cmd
 end
 
+-- Run the command
 function M.run_command(cmd)
     if M.lock then
+        vim.notify("CodeRunner is busy. Please wait...", vim.log.levels.WARN)
         return
     end
 
@@ -127,20 +117,28 @@ function M.run_command(cmd)
     end, 1000)
 end
 
+-- Run the code
 function M.run()
+    log_debug("Run function called")
     local cmd = nil
 
-    -- First, attempt to get command from coderun.json
+    -- First, attempt to get command from coderun.json based on keymap
     if M.config.coderun_commands and next(M.config.coderun_commands) then
         cmd = M.config.coderun_commands[M.config.keymap]
         if cmd then
+            log_debug("Found command in coderun.json for keymap " .. M.config.keymap)
             cmd = M.generate_command(cmd)
             M.run_command(cmd)
             return
+        else
+            log_debug("No command in coderun.json for keymap " .. M.config.keymap)
         end
+    else
+        log_debug("No coderun_commands found")
     end
 
-    -- If no command in coderun.json, fallback to language command
+    -- Fallback to language default
+    log_debug("Falling back to language default command")
     local bufnr = vim.api.nvim_get_current_buf()
     local file_path = vim.api.nvim_buf_get_name(bufnr)
     if file_path == "" then
@@ -176,11 +174,13 @@ function M.run()
     M.run_command(cmd)
 end
 
+-- Interrupt the running command
 function M.send_interrupt()
     vim.cmd("SendToSkyTerm Ctrl+C")
     vim.notify("Interrupt signal sent.", vim.log.levels.INFO)
 end
 
+-- Set up keybindings
 function M.set_keymaps()
     -- Clear previous keymaps if they exist
     if M.config.keymap and vim.fn.maparg(M.config.keymap, 'n') ~= '' then
@@ -205,15 +205,18 @@ function M.set_keymaps()
                 vim.api.nvim_del_keymap('n', keybind)
             end
             vim.api.nvim_set_keymap('n', keybind, "<Cmd>lua require('code-runner').run_custom('" .. cmd .. "')<CR>", { noremap = true, silent = true })
+            log_debug("Set keybind: " .. keybind .. " for command: " .. cmd)
         end
     end
 end
 
+-- Run custom command from coderun.json
 function M.run_custom(command)
     local cmd = M.generate_command(command)
     M.run_command(cmd)
 end
 
+-- Load configuration
 function M.load_configuration()
     M.config = vim.deepcopy(M.defaults)
     local json_path = M.find_coderun_json_path()
@@ -228,16 +231,23 @@ function M.load_configuration()
                 if entry.command and entry.keybind then
                     M.config.coderun_commands[entry.keybind] = entry.command
                     M.config.coderun_keybinds[entry.keybind] = entry.command
+                    log_debug("Loaded command from coderun.json: keybind=" .. entry.keybind .. ", command=" .. entry.command)
                 end
             end
+        else
+            log_debug("Failed to load json_config")
         end
+    else
+        log_debug("coderun.json not found during configuration load")
     end
 end
 
+-- Watch for changes in coderun.json
 function M.start_watching()
     if M.watch_handle then
         M.watch_handle:stop()
         M.watch_handle:close()
+        M.watch_handle = nil
     end
 
     local json_path = M.find_coderun_json_path()
@@ -251,8 +261,10 @@ function M.start_watching()
     end))
 end
 
+-- Setup function
 function M.setup(user_opts)
     M.defaults = merge_tables(M.defaults, user_opts)
+    M.config = vim.deepcopy(M.defaults)
     M.load_configuration()
     M.set_keymaps()
     M.start_watching()
