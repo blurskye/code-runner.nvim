@@ -402,8 +402,9 @@ function M.run_command(cmd)
 
     M.lock = true
     vim.cmd("SendToSkyTerm " .. cmd)
-    vim.notify("Running: " .. cmd, vim.log.levels.INFO)
-
+    if (M.debug) then
+        vim.notify("Running: " .. cmd, vim.log.levels.INFO)
+    end
     vim.defer_fn(function()
         M.lock = false
     end, 1000)
