@@ -1112,6 +1112,26 @@ function M.load_json_config(json_path, callback)
 end
 
 -- Generate command
+-- function M.generate_command(command_template)
+--     local bufnr = vim.api.nvim_get_current_buf()
+--     local file_path = vim.api.nvim_buf_get_name(bufnr)
+--     local file_dir = vim.fn.fnamemodify(file_path, ":h")
+--     local file_name = vim.fn.fnamemodify(file_path, ":t")
+--     local file_name_without_ext = vim.fn.fnamemodify(file_path, ":t:r")
+--     local file_extension = vim.fn.fnamemodify(file_path, ":e")
+--     local coderun_dir = M.coderun_dir
+
+--     local cmd = command_template
+--         :gsub("$dir", file_dir)
+--         :gsub("$fileName", file_name)
+--         :gsub("$fileNameWithoutExt", file_name_without_ext)
+--         :gsub("$fileExtension", file_extension)
+--         :gsub("$filePath", file_path)
+--         :gsub("$coderunDir", coderun_dir or "")
+--     return cmd
+-- end
+
+
 function M.generate_command(command_template)
     local bufnr = vim.api.nvim_get_current_buf()
     local file_path = vim.api.nvim_buf_get_name(bufnr)
@@ -1119,7 +1139,6 @@ function M.generate_command(command_template)
     local file_name = vim.fn.fnamemodify(file_path, ":t")
     local file_name_without_ext = vim.fn.fnamemodify(file_path, ":t:r")
     local file_extension = vim.fn.fnamemodify(file_path, ":e")
-    local coderun_dir = M.coderun_dir
 
     local cmd = command_template
         :gsub("$dir", file_dir)
@@ -1127,7 +1146,7 @@ function M.generate_command(command_template)
         :gsub("$fileNameWithoutExt", file_name_without_ext)
         :gsub("$fileExtension", file_extension)
         :gsub("$filePath", file_path)
-        :gsub("$coderunDir", coderun_dir or "")
+        :gsub("$coderunDir", M.coderun_dir or "")
     return cmd
 end
 
