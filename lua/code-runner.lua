@@ -429,6 +429,10 @@
 -- end
 
 -- return M
+local M = {}
+local uv = vim.loop
+
+-- Default configurations
 M.defaults = {
     keymap = '<F5>',
     interrupt_keymap = '<F2>',
@@ -524,7 +528,6 @@ local function show_accept_prompt(json_path, content, hash, callback)
     M.prompt_active = true
 
     local Popup = require('nui.popup')
-    local event = require('nui.utils.autocmd').event
 
     -- Wrap content in ```json for syntax highlighting
     local lines = {"```json"}
@@ -858,15 +861,16 @@ function M.start_watching()
     end))
 end
 
--- Set up autocmds to reload configuration on buffer enter and leave
+-- **Modified setup_autocmds function**
 function M.setup_autocmds()
     -- Create an augroup to prevent duplicate autocmds
-    vim.cmd([[
-        augroup CodeRunnerAutocmds
-            autocmd!
-            autocmd BufEnter,BufLeave * lua require('code-runner').on_buffer_event()
-        augroup END
-    ]])
+    local group = vim.api.nvim_create_augroup("CodeRunnerAutocmds", { clear = true })
+    vim.api.nvim_create_autocmd({ "BufEnter", "BufLeave" }, {
+        group = group,
+        callback = function()
+            M.on_buffer_event()
+        end,
+    })
 end
 
 -- Function to handle buffer events
