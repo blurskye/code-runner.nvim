@@ -1309,14 +1309,14 @@ end
 function M.load_configuration()
     M.config = vim.deepcopy(M.defaults)
     M.coderun_dir = nil -- Initialize to nil
+    M.config.coderun_commands = {}
+    M.config.coderun_keybinds = {}
     local json_path = M.find_coderun_json_path()
     if json_path then
         M.load_json_config(json_path, function(json_config)
             if json_config then
                 M.coderun_dir = vim.fn.fnamemodify(json_path, ":h") -- Set only if accepted
                 -- Process custom commands and keybinds
-                M.config.coderun_commands = {}
-                M.config.coderun_keybinds = {}
                 for _, entry in pairs(json_config) do
                     if entry.command and entry.keybind then
                         M.config.coderun_commands[entry.keybind] = entry.command
@@ -1325,20 +1325,12 @@ function M.load_configuration()
                     end
                 end
             else
-                -- Reset configurations when coderun.json is rejected
-                M.config.coderun_commands = {}
-                M.config.coderun_keybinds = {}
-                M.coderun_dir = nil
                 log_debug("User rejected coderun.json or failed to load json_config")
             end
             M.set_keymaps()
         end)
     else
         log_debug("coderun.json not found during configuration load")
-        -- Ensure configurations are reset
-        M.config.coderun_commands = {}
-        M.config.coderun_keybinds = {}
-        M.coderun_dir = nil
         M.set_keymaps()
     end
 end
