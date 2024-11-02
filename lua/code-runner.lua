@@ -1328,6 +1328,7 @@ end
 function M.load_configuration()
     M.config = vim.deepcopy(M.defaults)
     M.coderun_dir = nil -- Initialize to nil
+    -- Reset coderun commands and keybinds
     M.config.coderun_commands = {}
     M.config.coderun_keybinds = {}
     local json_path = M.find_coderun_json_path()
@@ -1340,16 +1341,17 @@ function M.load_configuration()
                     if entry.command and entry.keybind then
                         M.config.coderun_commands[entry.keybind] = entry.command
                         M.config.coderun_keybinds[entry.keybind] = entry.command
-                        log_debug("Loaded command from coderun.json: keybind=" .. entry.keybind .. ", command=" .. entry.command)
                     end
                 end
             else
-                log_debug("User rejected coderun.json or failed to load json_config")
+                -- coderun.json was rejected
+                M.coderun_dir = nil
+                M.config.coderun_commands = {}
+                M.config.coderun_keybinds = {}
             end
             M.set_keymaps()
         end)
     else
-        log_debug("coderun.json not found during configuration load")
         M.set_keymaps()
     end
 end
