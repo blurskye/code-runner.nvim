@@ -1325,36 +1325,63 @@ end
 --         M.set_keymaps()
 --     end
 -- end
-function M.load_configuration()
-    M.config = vim.deepcopy(M.defaults)
-    M.coderun_dir = nil -- Initialize to nil
-    -- Reset coderun commands and keybinds
-    M.config.coderun_commands = {}
-    M.config.coderun_keybinds = {}
-    local json_path = M.find_coderun_json_path()
-    if json_path then
-        M.load_json_config(json_path, function(json_config)
-            if json_config then
-                M.coderun_dir = vim.fn.fnamemodify(json_path, ":h") -- Set only if accepted
-                -- Process custom commands and keybinds
-                for _, entry in pairs(json_config) do
-                    if entry.command and entry.keybind then
-                        M.config.coderun_commands[entry.keybind] = entry.command
-                        M.config.coderun_keybinds[entry.keybind] = entry.command
-                    end
-                end
-            else
-                -- coderun.json was rejected
-                M.coderun_dir = nil
-                M.config.coderun_commands = {}
-                M.config.coderun_keybinds = {}
-            end
-            M.set_keymaps()
-        end)
+M.accepted_configs = {}
+M.rejected_configs = {}
+
+-- Modify the M.load_json_config function
+function M.load_json_config(json_path, callback)
+    -- Check if the json_path has been rejected before
+    if M.rejected_configs[json_path] then
+        log_debug("coderun.json was previously rejected at: " .. json_path)
+        if callback then callback(nil) end
+        return
+    end
+
+    local file = io.open(json_path, "r")
+    if not file then
+        vim.notify("Failed to open coderun.json at " .. json_path, vim.log.levels.ERROR)
+        if callback then callback(nil) end
+        return
+    end
+    local content = file:read("*all")
+    file:close()
+
+    local hash = vim.fn.sha256(content)
+    log_debug("Computed hash: " .. hash)
+
+    -- Check if hash matches accepted hash
+    if M.accepted_configs[json_path] == hash then
+        log_debug("coderun.json has been previously accepted")
+        local success, json_data = pcall(vim.fn.json_decode, content)
+        if not success then
+            vim.notify("Failed to parse coderun.json. Please check JSON syntax.", vim.log.levels.ERROR)
+            if callback then callback(nil) end
+            return
+        end
+        log_debug("Successfully loaded coderun.json")
+        if callback then callback(json_data) end
     else
-        M.set_keymaps()
+        -- Prompt the user to accept or reject
+        show_accept_prompt(json_path, content, hash, function(accepted)
+            if accepted then
+                local success, json_data = pcall(vim.fn.json_decode, content)
+                if not success then
+                    vim.notify("Failed to parse coderun.json. Please check JSON syntax.", vim.log.levels.ERROR)
+                    if callback then callback(nil) end
+                    return
+                end
+                log_debug("Successfully loaded coderun.json")
+                M.accepted_configs[json_path] = hash -- Save accepted hash
+                if callback then callback(json_data) end
+            else
+                vim.notify("coderun.json was rejected. Using default configuration.", vim.log.levels.INFO)
+                M.rejected_configs[json_path] = true -- Remember rejection
+                if callback then callback(nil) end
+            end
+        end)
     end
 end
+
 
 -- Watch for changes in coderun.json
 function M.start_watching()
