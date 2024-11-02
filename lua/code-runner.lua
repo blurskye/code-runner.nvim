@@ -235,8 +235,8 @@ function M.generate_command(command_template)
 
     local cmd = command_template
         :gsub("$dir", file_dir)
-        :gsub("$fileName", file_name)
         :gsub("$fileNameWithoutExt", file_name_without_ext)
+        :gsub("$fileName", file_name)
         :gsub("$fileExtension", file_extension)
         :gsub("$filePath", file_path)
         :gsub("$coderunDir", M.coderun_dir or "")
