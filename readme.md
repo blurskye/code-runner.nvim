@@ -9,41 +9,55 @@ https://github.com/blurskye/code-runner.nvim/assets/145671529/cf42120c-6b99-4cbe
 - **20+ languages** supported out of the box
 - **Project-specific commands** via `coderun.json`
 - **Security-first**: prompts before executing untrusted configs
-- **Multiple terminal backends**: toggleterm, sky-term, or built-in
+- **Multiple terminal backends**: sky-term, toggleterm, or built-in
 - **File watching**: auto-reloads when `coderun.json` changes
 - **Custom keybinds** per project
 
 ## 📦 Installation
 
-### lazy.nvim
+### lazy.nvim (recommended)
 
 ```lua
-{
-    "blurskye/code-runner.nvim",
-    dependencies = {
-        "MunifTanjim/nui.nvim", -- optional, for better prompts
-        "akinsho/toggleterm.nvim", -- optional, for terminal
+return {
+    {
+        "blurskye/code-runner.nvim",
+        dependencies = {
+            "MunifTanjim/nui.nvim", -- optional, for better config prompts
+        },
+        config = function()
+            require("code-runner").setup({
+                keymap = "<F5>",
+                interrupt_keymap = "<F2>",
+                -- debug = true,
+                commands = {
+                    -- Override or add commands here
+                    python = 'python3 -u "$dir/$fileName"',
+                },
+                extensions = {
+                    -- Override or add extensions here
+                    python = { "py" },
+                },
+            })
+        end,
     },
-    config = function()
-        require("code-runner").setup()
-    end,
+    -- Terminal plugin (pick one)
+    {
+        "blurskye/skyTerm",
+        config = function()
+            require("sky-term").setup({
+                toggle_key = "<C-\\>",
+            })
+        end,
+    },
 }
 ```
 
-### packer.nvim
+### Terminal Backends
 
-```lua
-use {
-    "blurskye/code-runner.nvim",
-    requires = {
-        "MunifTanjim/nui.nvim",
-        "akinsho/toggleterm.nvim",
-    },
-    config = function()
-        require("code-runner").setup()
-    end,
-}
-```
+The plugin tries terminals in this order:
+1. **sky-term** (recommended) - `blurskye/skyTerm`
+2. **toggleterm** - `akinsho/toggleterm.nvim`
+3. **built-in** - Neovim's `:terminal`
 
 ## ⚙️ Configuration
 
